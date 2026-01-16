@@ -1,4 +1,4 @@
-from passlib.hash import bcrypt
+import bcrypt
 
 
 def hash_password(initial_password: str):

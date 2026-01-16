@@ -2,7 +2,7 @@ from database import DECLARATIVE_BASE
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import UUID
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 class User(DECLARATIVE_BASE):
     __tablename__ = "users"

@@ -1,4 +1,5 @@
 from .user import (
     UserSchema,
-    UserLogin
+    UserLogin,
+    UserSignup
 )

@@ -5,8 +5,8 @@ from fastapi.exceptions import HTTPException
 from loguru import logger
 
 
-
 health_router = APIRouter(prefix="/health")
+
 
 @health_router.get("/healthcheck", response_class=JSONResponse, description="Healthcheck of the server")
 async def healthcheck():
@@ -14,7 +14,7 @@ async def healthcheck():
         return JSONResponse(
             content={
                 "server_status": "OK"
-            }, 
+            },
             status_code=status.HTTP_200_OK
         )
     except HTTPException as http_exception:

@@ -4,6 +4,7 @@ from database import DECLARATIVE_BASE, postgresql_engine
 from contextlib import asynccontextmanager
 from routers.health import health_router
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with postgresql_engine.begin() as connection:
@@ -29,5 +30,5 @@ app.add_middleware(
     allow_methods=["*"]
 )
 
-#Routers
+# Routers
 app.include_router(health_router)

@@ -5,8 +5,7 @@ from .database import (
     AsyncSession,
     postgresql_engine
 )
-
-from .user import(
+from .user import (
     find_user_by_id,
     create_user,
     authenticate_user

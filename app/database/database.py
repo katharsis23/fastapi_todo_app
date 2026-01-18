@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, create_async_engin
 from sqlalchemy.orm import sessionmaker
 from config import POSTGRESQL_CONFIG
 from sqlalchemy.orm import declarative_base
-from typing import AsyncGenerator
+from typing import AsyncGenerator   # noqa TYP001
 from sqlalchemy.exc import SQLAlchemyError
 from loguru import logger
 

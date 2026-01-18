@@ -1,9 +1,10 @@
-from app.models import User
+from models import User
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 from schemas.user import UserLogin, UserSchema
 from utils.password_manager import hash_password, verify_password
+
 
 async def find_user_by_id(user_id: int, db: AsyncSession):
     try:
@@ -18,7 +19,7 @@ async def create_user(user: UserSchema, db: AsyncSession):
     try:
         query = await db.execute(select(User).where(User.username == user.username))
         existing_user = query.scalar_one_or_none()
-        
+
         if existing_user:
             logger.warning(f"User {user.username} already exists")
             return None
@@ -28,12 +29,12 @@ async def create_user(user: UserSchema, db: AsyncSession):
             username=user.username,
             password=hashed_pw
         )
-        
+
         db.add(user_to_add)
         await db.commit()
         await db.refresh(user_to_add)
         return user_to_add
-        
+
     except Exception as error:
         await db.rollback()
         logger.error(f"Cannot insert user into db: {error}")
@@ -44,7 +45,7 @@ async def authenticate_user(user: UserLogin, db: AsyncSession):
     try:
         query = await db.execute(select(User).where(User.username == user.username))
         existing_user = query.scalar_one_or_none()
-        
+
         if existing_user and verify_password(user.password, existing_user.password):
             return existing_user
         return False

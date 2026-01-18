@@ -14,7 +14,11 @@ python-dotenv==1.0.1
 
 # Security & Hashing
 bcrypt==4.2.0
-# passlib видаляємо, якщо переходимо на чистий bcrypt
+
 
 # Utils
 loguru==0.7.2
+fastapi_utils
+
+#GIT utils
+pre-commit

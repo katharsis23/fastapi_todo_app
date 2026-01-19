@@ -16,9 +16,8 @@ RUN pip install --no-cache-dir -r requirements_dev.txt
 
 COPY . .
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/
 
 EXPOSE 8000
 
-# Використовуємо шлях app.main:app, якщо main.py лежить всередині папки app/
 CMD ["uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]

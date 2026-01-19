@@ -1,14 +1,15 @@
-from models import User
+from app.models.user import User
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
-from schemas.user import UserLogin, UserSchema
-from utils.password_manager import hash_password, verify_password
+from app.schemas.user import UserLogin, UserSchema
+from app.utils.password_manager import hash_password, verify_password
+import uuid
 
 
-async def find_user_by_id(user_id: int, db: AsyncSession):
+async def find_user_by_id(user_id: uuid, db: AsyncSession):
     try:
-        query = await db.execute(select(User).where(User.id == user_id))
+        query = await db.execute(select(User).where(User.user_id == user_id))
         return query.scalar_one_or_none()
     except Exception as error:
         logger.error(f"Error during user finding by id: {error}")

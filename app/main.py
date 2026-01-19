@@ -1,14 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import DECLARATIVE_BASE, postgresql_engine
+from app.database.database import DECLARATIVE_BASE, postgresql_engine
 from contextlib import asynccontextmanager
-from routers.health import health_router
+from app.routers.health import health_router
+from app.routers.user import router_user_service
+from loguru import logger
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with postgresql_engine.begin() as connection:
         await connection.run_sync(DECLARATIVE_BASE.metadata.create_all)
+        logger.debug(f"Таблиці в метаданих: {DECLARATIVE_BASE.metadata.tables.keys()}")
         yield
     await postgresql_engine.dispose()
 
@@ -32,3 +35,4 @@ app.add_middleware(
 
 # Routers
 app.include_router(health_router)
+app.include_router(router_user_service)

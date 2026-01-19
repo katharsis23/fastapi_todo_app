@@ -1,6 +1,8 @@
 # Web Framework
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
+typing-inspect
+fastapi-utils
 
 # Database
 sqlalchemy==2.0.36
@@ -14,7 +16,7 @@ python-dotenv==1.0.1
 
 # Security & Hashing
 bcrypt==4.2.0
-
+pyjwt==2.10.1
 
 # Utils
 loguru==0.7.2

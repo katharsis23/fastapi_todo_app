@@ -10,3 +10,9 @@ from .user import (
     create_user,
     authenticate_user
 )
+from .task import (
+    delete_task,
+    find_task_by_id,
+    update_task,
+    create_task
+)

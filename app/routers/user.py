@@ -6,7 +6,7 @@ from app.schemas.user import UserLogin, UserSignup
 from app.database.user import create_user, authenticate_user
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.database import get_db
-from app.utils.jwt_manager import create_access_token, verify_access_token
+from app.utils.jwt_manager import create_access_token
 
 router_user_service = APIRouter(prefix="/user", tags=["User"])
 
@@ -19,17 +19,30 @@ class UserViews:
     async def login(self, user_data: UserLogin) -> JSONResponse:
         user = await authenticate_user(db=self.db, user=user_data)
         if not user:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")
         token = create_access_token(user_id=user.user_id)
-        return JSONResponse({"access_token": token, "token_type": "bearer"})
+        return JSONResponse(
+            {
+                "access_token": token,
+                "token_type": "bearer"
+            }
+        )
 
     @router_user_service.post("/signup", summary="Create user")
     async def signup(self, user_data: UserSignup) -> JSONResponse:
         new_user = await create_user(db=self.db, user=user_data)
+        if new_user:
+            token = create_access_token(user_id=new_user.user_id)
+            return JSONResponse(
+                {
+                    "message": "User created",
+                    "access_token": token
+                },
+                status_code=status.HTTP_201_CREATED
+            )
         return JSONResponse(
             {
-                "message": "User created",
-                "id": str(new_user.user_id)
+                "message": "Signup failed, try to change the username"
             },
-            status_code=201
+            status_code=status.HTTP_400_BAD_REQUEST
         )

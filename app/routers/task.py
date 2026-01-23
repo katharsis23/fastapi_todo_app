@@ -12,6 +12,7 @@ from app.utils.oauth2Schema import get_current_user_id
 from app.schemas.task import TaskCreate, TaskUpdate
 from loguru import logger
 from uuid import UUID
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 tasks_endpoints = APIRouter(prefix="/task", tags=["Task"])
@@ -19,17 +20,25 @@ tasks_endpoints = APIRouter(prefix="/task", tags=["Task"])
 
 @cbv(tasks_endpoints)
 class TaskViews:
-    db = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 
     @tasks_endpoints.post("/", summary="Create task")
-    async def post_task(self, task_data: TaskCreate, token=Depends(get_current_user_id)) -> JSONResponse:
+    async def post_task(
+        self,
+        task_data: TaskCreate,
+        token=Depends(get_current_user_id)
+    ) -> JSONResponse:
         try:
-            created_task_id = create_task(task=task_data, user_id=token, db=self.db)
+            created_task_id = await create_task(
+                task=task_data,
+                user_id=token,
+                db=self.db
+            )
             if created_task_id:
                 return JSONResponse(
                     {
                         "message": "Task created succesfully",
-                        "task_id": created_task_id
+                        "task_id": str(created_task_id)
                     },
                     status_code=status.HTTP_201_CREATED
                 )
@@ -44,7 +53,12 @@ class TaskViews:
             logger.error(f"Failed task creating: {error}")
 
     @tasks_endpoints.patch("/{task_id}", summary="Changing task parameter")
-    async def patch_task(self, task_id: UUID,  task: TaskUpdate, token=Depends(get_current_user_id)) -> JSONResponse:
+    async def patch_task(
+        self,
+        task_id: UUID,
+        task: TaskUpdate,
+        token=Depends(get_current_user_id)
+    ) -> JSONResponse:
         try:
             existing_task = await find_task_by_id(
                 task_id=task_id,
@@ -62,7 +76,7 @@ class TaskViews:
                     return JSONResponse(
                         {
                             "message": "Update successfull",
-                            "task_id": updated_task.task_id,
+                            "task_id": str(updated_task.task_id),
                             "new_title": updated_task.title if task.title else None,
                             "new_description": updated_task.description if task.description else None,
                             "new_appointed_at": updated_task.appointed_at if updated_task.appointed_at else None

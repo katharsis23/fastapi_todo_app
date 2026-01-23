@@ -1,16 +1,15 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from uuid import UUID
 
 
 class TaskCreate(BaseModel):
     title: str
-    description: Optional[str]
-    appointed_at: Optional[datetime]
+    description: Optional[str] = None
+    appointed_at: Optional[datetime] = None
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str]
-    description: Optional[str]
-    appointed_at: Optional[datetime]
+    title: Optional[str] = None
+    description: Optional[str] = None
+    appointed_at: Optional[datetime] = None

@@ -37,7 +37,7 @@ else
 fi
 
 header "TESTING: Pytest"
-if docker compose run --rm backend pytest; then
+if docker compose run --rm backend pytest -vv; then
     success "All tests passed!"
 else
     error "Some tests failed!"

@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, create_async_engin
 from sqlalchemy.orm import sessionmaker
 from app.config import POSTGRESQL_CONFIG
 from sqlalchemy.orm import declarative_base
-from typing import AsyncGenerator   # noqa TYP001
+from typing import AsyncGenerator   # noqa: TYP001
 from sqlalchemy.exc import SQLAlchemyError
 from loguru import logger
 
@@ -21,13 +21,13 @@ async_session_factory = sessionmaker(
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    session = async_session_factory()
     try:
-        async with async_session_factory() as connection:
-            yield connection
-            await connection.commit()
+        async with session:
+            yield session
     except SQLAlchemyError as database_error:
-        await connection.rollback()
+        await session.rollback()
         logger.error(f"Error with a Postgresql session: {database_error}")
         raise
     finally:
-        await connection.close()
+        await session.close()

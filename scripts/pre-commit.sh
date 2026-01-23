@@ -32,7 +32,7 @@ fi
 
 header "STEP 2: Test"
 
-if docker compose run --rm -e PYTHONPATH=/app -w /app/app backend pytest test/test_user_service.py; then
+if docker compose run --rm -e PYTHONPATH=/app -w /app/app backend pytest test/ -vv; then
     success "All tests passed!"
 else
     error "Some tests failed!"

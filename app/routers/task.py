@@ -79,7 +79,7 @@ class TaskViews:
                             "task_id": str(updated_task.task_id),
                             "new_title": updated_task.title if task.title else None,
                             "new_description": updated_task.description if task.description else None,
-                            "new_appointed_at": updated_task.appointed_at if updated_task.appointed_at else None
+                            "new_appointed_at": updated_task.appointed_at.isoformat() if updated_task.appointed_at else None
                         },
                         status_code=status.HTTP_200_OK
                     )

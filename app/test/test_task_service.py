@@ -55,54 +55,41 @@ class TestTaskViews:
         assert data["message"] == "Task created succesfully"
         assert "task_id" in data
 
-    @pytest.mark.skip()
     def test_patch_task_success(self, client, auth_token):
-        # Create a mock task for the patch operation
-        mock_task = AsyncMock()
-        mock_task.task_id = uuid4()
-        mock_task.title = "Updated Title"
-        mock_task.description = "Updated Desc"
-        mock_task.appointed_at = None
+        test_task = {
+            "title": "Initial title",
+            "description": "Initial description",
+            "appointed_at": (
+                datetime.now(timezone.utc) + timedelta(days=1)
+            ).isoformat()
+        }
+        creation_response = client.post(
+            "/task/",
+            json=test_task,
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+        assert creation_response.status_code == 201
+        created_task_id = creation_response.json()["task_id"]
+        assert created_task_id is not None
 
-        with patch(
-            "app.database.task.find_task_by_id",
-            AsyncMock(return_value=mock_task)
-        ), patch(
-            "app.database.task.update_task",
-            AsyncMock(return_value=mock_task)
-        ):
-            test_creation_task = client.post(
-                "/task/",
-                json={
-                    "title": "Test Task",
-                    "description": "Test description",
-                    "appointed_at": (
-                        datetime.now(timezone.utc) + timedelta(days=1)
-                    ).isoformat()
-                },
-                headers={"Authorization": f"Bearer {auth_token}"}
-            )
-            assert test_creation_task.status_code == 201
-            test_creation_task_data = test_creation_task.json()
-            assert test_creation_task_data["message"] == (
-                "Task created succesfully"
-            )
-            assert "task_id" in test_creation_task_data
-
-            updated_payload = {
-                "title": "Updated Title",
-                "description": "Updated Desc",
-            }
-            response = client.patch(
-                f"/task/{test_creation_task.json()['task_id']}",
-                json=updated_payload,
-                headers={"Authorization": f"Bearer {auth_token}"}
-            )
-            logger.debug(response.json())
-            assert response.status_code == 200
-            data = response.json()
-            assert data["message"] == "Update successfull"
-            assert data["new_title"] == "Updated Title"
+        updated_payload = {
+            "title": "Updated title",
+            "description": "Updated description",
+            "appointed_at": (
+                datetime.now(timezone.utc) + timedelta(days=2)
+            ).isoformat()
+        }
+        updated_response = client.patch(
+            f"/task/{created_task_id}",
+            json=updated_payload,
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+        assert updated_response.status_code == 200
+        updated_data = updated_response.json()
+        assert updated_data["task_id"] == created_task_id
+        assert updated_data["new_title"] == updated_payload["title"]
+        assert updated_data["new_description"] == updated_payload["description"]
+        assert updated_data["new_appointed_at"] == updated_payload["appointed_at"]
 
     def test_patch_task_not_found(self, client, auth_token):
         task_id = str(uuid4())

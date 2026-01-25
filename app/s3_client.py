@@ -1,0 +1,32 @@
+import aioboto3
+from contextlib import asynccontextmanager
+from app.config import S3_CONFIG
+
+
+class S3Client:
+    def __init__(self):
+        self.config = {
+            "endpoint_url": S3_CONFIG.endpoint_url,
+            "aws_access_key_id": S3_CONFIG.access_key,
+            "aws_secret_access_key": S3_CONFIG.secret_key.get_secret_value(),
+        }
+        self.bucket_name = {S3_CONFIG.bucket_notes, S3_CONFIG.bucket_avatars}
+        self.session = aioboto3.Session()
+
+    @asynccontextmanager
+    async def get_client(self):
+        async with self.session.client("s3", **self.config) as client:
+            yield client
+
+    async def upload_file(self, file: bytes, bucket_name: str, object_name: str):
+        if bucket_name not in self.bucket_name:
+            raise ValueError("Invalid bucket name")
+        async with self.get_client() as client:
+            await client.put_object(
+                Bucket=bucket_name,
+                Key=object_name,
+                Body=file
+            )
+
+
+s3_client = S3Client()

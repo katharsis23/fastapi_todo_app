@@ -22,5 +22,5 @@ pyjwt==2.10.1
 loguru==0.7.2
 fastapi_utils
 
-#GIT utils
-pre-commit
+# S3 bucket
+aioboto3==15.5.0

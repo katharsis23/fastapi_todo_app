@@ -9,50 +9,67 @@ services:
       - .:/app
     env_file:
       - .env
-    environment:
-      - PYTHONPATH=/app/
     ports: 
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
+      s3-bucket:
+        condition: service_started
 
   postgres:
     image: postgres:latest
     container_name: postgres_container
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: postgres_user
-      POSTGRES_PASSWORD: CLOUD_BLACK_SHEEP_1542
-      POSTGRES_DB: postgres_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5430:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    command: >
-      postgres -c max_connections=1000
-               -c shared_buffers=256MB
-               -c effective_cache_size=768MB
-               -c maintenance_work_mem=64MB
-               -c checkpoint_completion_target=0.7
-               -c wal_buffers=16MB
-               -c default_statistics_target=100
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres_user -d postgres_db" ]
-      interval: 30s
-      timeout: 10s
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
       retries: 5
     restart: unless-stopped
-    tty: true
-    stdin_open: true
+
+  s3-bucket:
+    image: minio/minio
+    container_name: minio_storage
+    env_file:
+      - .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - s3-bucket
+    env_file:
+      - .env
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc alias set myminio http://s3-bucket:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      /usr/bin/mc mb myminio/avatars || true;
+      /usr/bin/mc mb myminio/notes || true;
+      /usr/bin/mc anonymous set public myminio/avatars || true;
+      exit 0;
+      "
 
 volumes:
   postgres_data:
+  minio_data:

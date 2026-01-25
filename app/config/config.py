@@ -26,3 +26,19 @@ class JWT_Config(BaseSettings):
 
 
 JWT_CONFIG = JWT_Config()
+
+
+class S3_Config(BaseSettings):
+    endpoint_url: str = Field(alias="S3_ENDPOINT_URL")
+    access_key: str = Field(alias="MINIO_ROOT_USER")
+    secret_key: SecretStr = Field(alias="MINIO_ROOT_PASSWORD")
+    bucket_notes: str = Field(alias="S3_BUCKET_NOTES")
+    bucket_avatars: str = Field(alias="S3_BUCKET_AVATARS")
+
+    model_config = SettingsConfigDict(
+        title="S3 configuration",
+        env_file=None
+    )
+
+
+S3_CONFIG = S3_Config()

@@ -1,4 +1,4 @@
-from fastapi import status, Depends, HTTPException, APIRouter
+from fastapi import status, Depends, HTTPException, APIRouter, Query
 from fastapi_utils.cbv import cbv
 from fastapi.responses import JSONResponse
 from app.database.database import get_db
@@ -6,7 +6,9 @@ from app.database.task import (
     create_task,
     update_task,
     delete_task,
-    find_task_by_id
+    find_task_by_id,
+    get_all_tasks_by_user,
+    get_tasks_count_by_user
 )
 from app.utils.oauth2Schema import get_current_user_id
 from app.schemas.task import TaskCreate, TaskUpdate
@@ -121,5 +123,50 @@ class TaskViews:
             )
 
     @tasks_endpoints.get("/", summary="Get all tasks of user")
-    async def get_tasks(self, token=Depends(get_current_user_id)) -> JSONResponse:
-        pass
+    async def get_tasks(
+        self,
+        token=Depends(get_current_user_id),
+        page: int = Query(1, ge=1, description="Page number"),
+        size: int = Query(
+            10, ge=1, le=100, description="Number of tasks per page"
+        )
+    ) -> JSONResponse:
+        try:
+            skip = (page - 1) * size
+            tasks = await get_all_tasks_by_user(token, self.db, skip, size)
+            total_tasks = await get_tasks_count_by_user(token, self.db)
+            total_pages = (
+                total_tasks + size - 1
+            ) // size if size > 0 else 0
+
+            return JSONResponse(
+                {
+                    "tasks": [
+                        {
+                            "task_id": str(task.task_id),
+                            "title": task.title,
+                            "description": task.description,
+                            "appointed_at": (
+                                task.appointed_at.isoformat()
+                                if task.appointed_at else None
+                            ),
+                            "created_at": task.created_at.isoformat()
+                        }
+                        for task in tasks
+                    ],
+                    "pagination": {
+                        "total_pages": total_pages,
+                        "current_page": page,
+                        "page_size": size,
+                        "has_next": page < total_pages,
+                        "has_prev": page > 1
+                    }
+                },
+                status_code=status.HTTP_200_OK
+            )
+        except HTTPException as error:
+            logger.error(f"Error during task retrieval: {error}")
+            return JSONResponse(
+                {"message": "Internal server error"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

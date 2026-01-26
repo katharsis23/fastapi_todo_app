@@ -18,7 +18,7 @@ class S3Client:
         async with self.session.client("s3", **self.config) as client:
             yield client
 
-    async def upload_file(self, file: bytes, bucket_name: str, object_name: str):
+    async def upload_file(self, file: bytes, bucket_name: str, object_name: str) -> None:
         if bucket_name not in self.bucket_name:
             raise ValueError("Invalid bucket name")
         async with self.get_client() as client:
@@ -26,6 +26,15 @@ class S3Client:
                 Bucket=bucket_name,
                 Key=object_name,
                 Body=file
+            )
+
+    async def delete_file(self, bucket_name: str, object_name: str) -> None:
+        if bucket_name not in self.bucket_name:
+            raise ValueError("Invalid bucket name")
+        async with self.get_client() as client:
+            await client.delete_object(
+                Bucket=bucket_name,
+                Key=object_name
             )
 
 

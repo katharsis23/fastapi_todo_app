@@ -58,15 +58,17 @@ services:
     image: minio/mc
     depends_on:
       - s3-bucket
-    env_file:
-      - .env
+    volumes:
+      - ./static/default_avatar.jpeg:/tmp/default_avatar.jpeg
+    env_file: .env
     entrypoint: >
       /bin/sh -c "
       sleep 5;
-      /usr/bin/mc alias set myminio http://s3-bucket:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      /usr/bin/mc alias set myminio http://s3-bucket:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
       /usr/bin/mc mb myminio/avatars || true;
-      /usr/bin/mc mb myminio/notes || true;
       /usr/bin/mc anonymous set public myminio/avatars || true;
+      # Завантажуємо дефолтну аватарку, якщо її ще немає
+      /usr/bin/mc cp /tmp/default-avatar.png myminio/avatars/default-avatar.png || true;
       exit 0;
       "
 

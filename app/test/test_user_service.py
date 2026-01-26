@@ -2,7 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from app.main import app
 import uuid
 

@@ -24,3 +24,13 @@ fastapi_utils
 
 # S3 bucket
 aioboto3==15.5.0
+
+# Alembic
+alembic==1.18.1
+psycopg2-binary==2.9.11
+
+# Multipart
+python-multipart==0.0.22
+
+# Image
+Pillow==12.1.0

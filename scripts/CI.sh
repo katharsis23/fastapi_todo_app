@@ -30,7 +30,7 @@ else
 fi
 
 header "LINTING: Flake8"
-if docker compose run --rm backend flake8 . --ignore-missing-imports; then
+if docker compose run --rm backend flake8 --config=app/.flake8 app/; then
     success "No linting issues found."
 else
     warning "Linting issues detected! Please fix them."

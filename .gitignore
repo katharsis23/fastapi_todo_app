@@ -209,3 +209,5 @@ __marimo__/
 
 .env
 venv
+alembic.ini
+**/alembic/**

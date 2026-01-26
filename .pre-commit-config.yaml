@@ -6,9 +6,11 @@ repos:
         entry: docker compose run --rm backend flake8 --config=app/.flake8 app/
         language: system
         pass_filenames: false
+        stages: [commit]
 
     -   id: docker-pytest
         name: Tests (Pytest in Docker)
-        entry: docker compose run --rm -e PYTHONPATH=/app -w /app/app backend pytest test/test_user_service.py
+        entry: docker compose run --rm -T backend pytest
         language: system
         pass_filenames: false
+        stages: [commit]

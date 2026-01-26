@@ -13,4 +13,4 @@ repos:
         entry: docker compose run --rm -T backend pytest
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [commit]

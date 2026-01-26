@@ -12,9 +12,11 @@ from .user import (
     delete_avatar_database,
     get_avatar
 )
-from .task import (
+from app.database.task import (
     delete_task,
     find_task_by_id,
     update_task,
     create_task,
+    get_all_tasks_by_user,
+    get_tasks_count_by_user
 )

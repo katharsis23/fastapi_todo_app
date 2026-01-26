@@ -169,3 +169,35 @@ class TestTaskViews:
 
         assert response.status_code == 404
         assert response.json()["message"] == "Task not found"
+
+    def test_get_all_tasks(self, client, auth_token):
+        """
+        Test that getting all tasks returns a 200 status code and a list of
+        tasks with pagination metadata.
+        :param client: The FastAPI test client
+        :type client: TestClient
+        :param auth_token: A valid authentication token
+        :type auth_token: str
+        """
+        with patch(
+            "app.database.task.get_all_tasks_by_user",
+            AsyncMock(return_value=[])
+        ), patch(
+            "app.database.task.get_tasks_count_by_user",
+            AsyncMock(return_value=0)
+        ):
+            response = client.get(
+                "/task/",
+                headers={"Authorization": f"Bearer {auth_token}"}
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "tasks" in data
+        assert "pagination" in data
+        assert data["tasks"] is not None
+        assert data["pagination"]["total_pages"] >= 1
+        assert data["pagination"]["current_page"] == 1
+        assert data["pagination"]["page_size"] == 10
+        assert data["pagination"]["has_next"] is not None
+        assert data["pagination"]["has_prev"] is not None

@@ -1,10 +1,11 @@
 from app.models.models import Task
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import func
 from loguru import logger
 from app.schemas.task import TaskCreate, TaskUpdate
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
 
 
 async def create_task(
@@ -95,3 +96,34 @@ async def delete_task(task_id: UUID, user_id: UUID, db: AsyncSession) -> bool:
         await db.rollback()
         logger.error(f"Delete failed: {error}")
         return False
+
+
+async def get_all_tasks_by_user(
+    user_id: UUID,
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 10
+) -> List[Task]:
+    try:
+        query = await db.execute(
+            select(Task)
+            .where(Task.user_fk == user_id)
+            .offset(skip)
+            .limit(limit)
+        )
+        return query.scalars().all()
+    except Exception as error:
+        logger.error(f"Failed to get all tasks: {error}")
+        return []
+
+
+async def get_tasks_count_by_user(user_id: UUID, db: AsyncSession) -> int:
+    try:
+        query = await db.execute(
+            select(func.count(Task.task_id))
+            .where(Task.user_fk == user_id)
+        )
+        return query.scalar()
+    except Exception as error:
+        logger.error(f"Failed to get tasks count: {error}")
+        return 0

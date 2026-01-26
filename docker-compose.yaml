@@ -67,8 +67,8 @@ services:
       /usr/bin/mc alias set myminio http://s3-bucket:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
       /usr/bin/mc mb myminio/avatars || true;
       /usr/bin/mc anonymous set public myminio/avatars || true;
-      # Завантажуємо дефолтну аватарку, якщо її ще немає
-      /usr/bin/mc cp /tmp/default-avatar.png myminio/avatars/default-avatar.png || true;
+      /usr/bin/mc cp /tmp/default_avatar.jpeg myminio/avatars/default_avatar.jpeg || true;
+      /usr/bin/mc mb myminio/notes || true;
       exit 0;
       "
 

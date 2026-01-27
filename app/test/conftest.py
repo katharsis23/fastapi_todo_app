@@ -16,8 +16,8 @@ def db_session():
 
 def _make_app() -> FastAPI:
     app = FastAPI()
-    app.include_router(router=user.router_user_service)
-    app.include_router(router=task.tasks_endpoints)
+    app.include_router(router=user.user_router)
+    app.include_router(router=task.tasks_router)
     return app
 
 

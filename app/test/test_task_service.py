@@ -52,7 +52,7 @@ class TestTaskViews:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["message"] == "Task created succesfully"
+        assert data["message"] == "Task created successfully"
         assert "task_id" in data
 
     def test_patch_task_success(self, client, auth_token):
@@ -94,7 +94,7 @@ class TestTaskViews:
     def test_patch_task_not_found(self, client, auth_token):
         task_id = str(uuid4())
         with patch(
-            "app.database.task.find_task_by_id",
+            "app.database.task.get_task_by_id",
             AsyncMock(return_value=None)
         ):
             response = client.patch(
@@ -104,7 +104,7 @@ class TestTaskViews:
             )
 
         assert response.status_code == 400
-        assert response.json()["message"] == "Something went wrong"
+        assert response.json()["message"] == "Task not found or update failed"
 
     @pytest.mark.skip()
     def test_delete_task_success(self, client, auth_token):
@@ -118,7 +118,7 @@ class TestTaskViews:
         """
         task_id = str(uuid4())
         with patch(
-            "app.database.task.delete_task", AsyncMock(return_value=True)
+            "app.database.task.remove_task", AsyncMock(return_value=True)
         ):
             response = client.delete(
                 f"/task/{task_id}",
@@ -138,7 +138,7 @@ class TestTaskViews:
         :type auth_token: str
         """
         task_id = str(uuid4())
-        with patch("app.database.task.delete_task", AsyncMock(return_value=False)):
+        with patch("app.database.task.remove_task", AsyncMock(return_value=False)):
             response = client.delete(
                 f"/task/{task_id}",
                 headers={"Authorization": f"Bearer {auth_token}"}
@@ -159,7 +159,7 @@ class TestTaskViews:
         """
         task_id = str(uuid4())
         with patch(
-            "app.database.task.delete_task",
+            "app.database.task.remove_task",
             AsyncMock(side_effect=Exception("DB Error"))
         ):
             response = client.delete(
@@ -180,10 +180,10 @@ class TestTaskViews:
         :type auth_token: str
         """
         with patch(
-            "app.database.task.get_all_tasks_by_user",
+            "app.database.task.get_user_tasks",
             AsyncMock(return_value=[])
         ), patch(
-            "app.database.task.get_tasks_count_by_user",
+            "app.database.task.count_user_tasks",
             AsyncMock(return_value=0)
         ):
             response = client.get(

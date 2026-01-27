@@ -1,6 +1,5 @@
 from fastapi.responses import JSONResponse
-from fastapi import status, Depends, APIRouter
-from fastapi.exceptions import HTTPException
+from fastapi import status, Depends, APIRouter, HTTPException
 from fastapi_utils.cbv import cbv
 from app.schemas.user import UserLogin, UserSignup
 from app.database.user import (
@@ -10,55 +9,81 @@ from app.database.user import (
     delete_avatar_database,
     get_avatar
 )
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.database.database import get_db
+from app.database.database import get_db, AsyncSession
 from app.utils.jwt_manager import create_access_token
-from app.internal.avatar import post_avatar, delete_avatar
+from app.external.avatar import post_avatar, delete_avatar
 from app.utils.oauth2Schema import get_current_user_id
 from loguru import logger
 from fastapi import File, UploadFile
 from uuid import UUID
 
-router_user_service = APIRouter(prefix="/user", tags=["User"])
+user_router = APIRouter(prefix="/user", tags=["User"])
 
 
-@cbv(router_user_service)
+@cbv(user_router)
 class UserViews:
     db: AsyncSession = Depends(get_db)
 
-    @router_user_service.post("/login", summary="Login")
-    async def login(self, user_data: UserLogin) -> JSONResponse:
-        user = await authenticate_user(db=self.db, user=user_data)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")
-        token = create_access_token(user_id=user.user_id)
-        return JSONResponse(
-            {
-                "access_token": token,
-                "token_type": "bearer"
-            }
-        )
-
-    @router_user_service.post("/signup", summary="Create user")
-    async def signup(self, user_data: UserSignup) -> JSONResponse:
-        new_user = await create_user(db=self.db, user=user_data)
-        if new_user:
-            token = create_access_token(user_id=new_user.user_id)
+    @user_router.post("/login", summary="Login")
+    async def login_endpoint(self, user_data: UserLogin) -> JSONResponse:
+        logger.info(f"Login attempt for user: {user_data.username}")
+        try:
+            user = await authenticate_user(db=self.db, user=user_data)
+            if not user:
+                logger.warning(f"Login failed for user: {user_data.username}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid credentials"
+                )
+            token = create_access_token(user_id=user.user_id)
+            logger.info(f"User {user_data.username} logged in successfully")
             return JSONResponse(
                 {
-                    "message": "User created",
-                    "access_token": token
-                },
-                status_code=status.HTTP_201_CREATED
+                    "access_token": token,
+                    "token_type": "bearer",
+                    "user_id": str(user.user_id)
+                }
             )
-        return JSONResponse(
-            {
-                "message": "Signup failed, try to change the username"
-            },
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
+        except HTTPException:
+            raise
+        except Exception as error:
+            logger.error(f"Unexpected error during login: {error}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error"
+            )
 
-    @router_user_service.delete("/avatar", summary="Delete avatar")
+    @user_router.post("/signup", summary="Create user")
+    async def signup_endpoint(self, user_data: UserSignup) -> JSONResponse:
+        logger.info(f"Signup attempt for user: {user_data.username}")
+        try:
+            new_user = await create_user(db=self.db, user=user_data)
+            if new_user:
+                token = create_access_token(user_id=new_user.user_id)
+                logger.info(f"User {user_data.username} created successfully")
+                return JSONResponse(
+                    {
+                        "message": "User created",
+                        "access_token": token,
+                        "user_id": str(new_user.user_id)
+                    },
+                    status_code=status.HTTP_201_CREATED
+                )
+            logger.warning(f"Signup failed for user: {user_data.username}")
+            return JSONResponse(
+                {
+                    "message": "Signup failed, try to change the username"
+                },
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as error:
+            logger.error(f"Unexpected error during signup: {error}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error"
+            )
+
+    @user_router.delete("/avatar", summary="Delete avatar")
     async def delete_avatar_endpoint(self, token: str = Depends(get_current_user_id)) -> JSONResponse:
         try:
             user = await delete_avatar_database(user_id=token, db=self.db)
@@ -83,8 +108,8 @@ class UserViews:
                 detail="Internal server error"
             )
 
-    @router_user_service.post("/avatar", summary="Upload avatar")
-    async def post_avatar_endpoint(
+    @user_router.post("/avatar", summary="Upload avatar")
+    async def upload_avatar_endpoint(
         self,
         user_id: UUID = Depends(get_current_user_id),
         file: UploadFile = File(...)
@@ -111,7 +136,7 @@ class UserViews:
             logger.error(f"Avatar upload failed: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    @router_user_service.get("/avatar", summary="Get avatar")
+    @user_router.get("/avatar", summary="Get avatar")
     async def get_avatar_endpoint(self, user_id: UUID = Depends(get_current_user_id)) -> JSONResponse:
         avatar_path = await get_avatar(user_id=user_id, db=self.db)
 

@@ -30,7 +30,7 @@ async def create_task(
         return None
 
 
-async def find_task_by_id(
+async def get_task_by_id(
     task_id: UUID,
     user_id: UUID,
     db: AsyncSession
@@ -48,14 +48,14 @@ async def find_task_by_id(
         return None
 
 
-async def update_task(
+async def update_task_by_id(
     task_id: UUID,
     task_update_data: TaskUpdate,
     user_id: UUID,
     db: AsyncSession
 ) -> Optional[Task]:
     try:
-        existing_task = await find_task_by_id(
+        existing_task = await get_task_by_id(
             task_id=task_id,
             user_id=user_id,
             db=db
@@ -80,9 +80,9 @@ async def update_task(
         return None
 
 
-async def delete_task(task_id: UUID, user_id: UUID, db: AsyncSession) -> bool:
+async def remove_task(task_id: UUID, user_id: UUID, db: AsyncSession) -> bool:
     try:
-        existing_task = await find_task_by_id(
+        existing_task = await get_task_by_id(
             task_id=task_id,
             user_id=user_id,
             db=db
@@ -98,7 +98,7 @@ async def delete_task(task_id: UUID, user_id: UUID, db: AsyncSession) -> bool:
         return False
 
 
-async def get_all_tasks_by_user(
+async def get_user_tasks(
     user_id: UUID,
     db: AsyncSession,
     skip: int = 0,
@@ -117,7 +117,7 @@ async def get_all_tasks_by_user(
         return []
 
 
-async def get_tasks_count_by_user(user_id: UUID, db: AsyncSession) -> int:
+async def count_user_tasks(user_id: UUID, db: AsyncSession) -> int:
     try:
         query = await db.execute(
             select(func.count(Task.task_id))

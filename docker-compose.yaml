@@ -71,6 +71,45 @@ services:
       /usr/bin/mc mb myminio/notes || true;
       exit 0;
       "
+  redis:
+    image: redis:latest
+    container_name: redis_container
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_USER=${REDIS_USER}
+      - REDIS_USER_PASSWORD=${REDIS_USER_PASSWORD}
+    ports:
+      - "6380:6380"
+    volumes:
+      - /tmp/fastapi_todo_app_redis/redisdata:/data
+    env_file:
+      - ./.env
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    command: >
+      sh -c '
+        mkdir -p /usr/local/etc/redis &&
+        echo "bind 0.0.0.0" > /usr/local/etc/redis/redis.conf &&
+        echo "port 6380" >> /usr/local/etc/redis/redis.conf &&
+        echo "appendonly yes" >> /usr/local/etc/redis/redis.conf &&
+        echo "user default on >$$REDIS_PASSWORD ~* +@all" > /usr/local/etc/redis/users.acl &&
+        echo "user $$REDIS_USER on >$$REDIS_USER_PASSWORD ~* +@all" >> /usr/local/etc/redis/users.acl &&
+        redis-server /usr/local/etc/redis/redis.conf --aclfile /usr/local/etc/redis/users.acl
+      '
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "-a", "$REDIS_PASSWORD", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
 
 volumes:
   postgres_data:

@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, SecretStr
 
 
-class Postgresql_Config(BaseSettings):
+class PostgresqlConfig(BaseSettings):
     db_url: str = Field(alias="DATABASE_URL")
 
     model_config = SettingsConfigDict(
@@ -11,10 +11,10 @@ class Postgresql_Config(BaseSettings):
     )
 
 
-POSTGRESQL_CONFIG = Postgresql_Config()
+POSTGRESQL_CONFIG = PostgresqlConfig()
 
 
-class JWT_Config(BaseSettings):
+class JWTConfig(BaseSettings):
     secret_key: SecretStr = Field(alias="SECRET_KEY")
     algorithm: str = Field(alias="ALGORITHM")
     expiration_time: int = Field(alias="ACCESS_TOKEN_EXPIRE_MINUTES")
@@ -25,10 +25,10 @@ class JWT_Config(BaseSettings):
     )
 
 
-JWT_CONFIG = JWT_Config()
+JWT_CONFIG = JWTConfig()
 
 
-class S3_Config(BaseSettings):
+class S3Config(BaseSettings):
     endpoint_url: str = Field(alias="S3_ENDPOINT_URL")
     access_key: str = Field(alias="MINIO_ROOT_USER")
     secret_key: SecretStr = Field(alias="MINIO_ROOT_PASSWORD")
@@ -41,4 +41,4 @@ class S3_Config(BaseSettings):
     )
 
 
-S3_CONFIG = S3_Config()
+S3_CONFIG = S3Config()

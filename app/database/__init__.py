@@ -1,5 +1,5 @@
 from .database import (
-    DECLARATIVE_BASE,
+    DeclarativeBase,
     get_db,
     AsyncSession,
     postgresql_engine
@@ -13,10 +13,10 @@ from .user import (
     get_avatar
 )
 from app.database.task import (
-    delete_task,
-    find_task_by_id,
-    update_task,
+    remove_task,
+    get_task_by_id,
+    update_task_by_id,
     create_task,
-    get_all_tasks_by_user,
-    get_tasks_count_by_user
+    get_user_tasks,
+    count_user_tasks
 )

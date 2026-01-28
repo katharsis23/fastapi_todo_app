@@ -3,10 +3,9 @@ repos:
     hooks:
     -   id: docker-flake8
         name: Linter (Flake8 in Docker)
-        entry: docker compose run --rm backend flake8 --config=app/.flake8 app/
+        entry: docker compose run --rm -T backend flake8 --config=app/.flake8 app/
         language: system
         pass_filenames: false
-        stages: [commit]
 
     -   id: docker-pytest
         name: Tests (Pytest in Docker)

@@ -50,7 +50,7 @@ fastapi_todo_app/
 ├── app/
 │   ├── config/          # Application configuration
 │   ├── database/        # Database models and operations
-│   ├── internal/        # Internal utilities
+│   ├── external/        # External utilities
 │   ├── models/          # SQLAlchemy models (User, Task)
 │   ├── routers/         # API endpoints (user, task, health)
 │   ├── schemas/         # Pydantic schemas

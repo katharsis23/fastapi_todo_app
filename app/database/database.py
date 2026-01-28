@@ -6,7 +6,7 @@ from typing import AsyncGenerator   # noqa: TYP001
 from sqlalchemy.exc import SQLAlchemyError
 from loguru import logger
 
-DECLARATIVE_BASE = declarative_base()
+DeclarativeBase = declarative_base()
 
 postgresql_engine = create_async_engine(
     url=POSTGRESQL_CONFIG.db_url,

@@ -1,35 +1,39 @@
 from fastapi import status, Depends, HTTPException, APIRouter, Query
 from fastapi_utils.cbv import cbv
 from fastapi.responses import JSONResponse
-from app.database.database import get_db
+from app.database.database import get_db, AsyncSession
 from app.database.task import (
     create_task,
-    update_task,
-    delete_task,
-    find_task_by_id,
-    get_all_tasks_by_user,
-    get_tasks_count_by_user
+    update_task_by_id,
+    remove_task,
+    get_task_by_id,
+    get_user_tasks,
+    count_user_tasks
 )
 from app.utils.oauth2Schema import get_current_user_id
 from app.schemas.task import TaskCreate, TaskUpdate
+from app.schemas.responses import (
+    TaskCreateResponse,
+    TaskUpdateResponse
+)
 from loguru import logger
 from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
-tasks_endpoints = APIRouter(prefix="/task", tags=["Task"])
+tasks_router = APIRouter(prefix="/task", tags=["Task"])
 
 
-@cbv(tasks_endpoints)
+@cbv(tasks_router)
 class TaskViews:
     db: AsyncSession = Depends(get_db)
 
-    @tasks_endpoints.post("/", summary="Create task")
-    async def post_task(
+    @tasks_router.post("/", summary="Create task")
+    async def create_task_endpoint(
         self,
         task_data: TaskCreate,
         token=Depends(get_current_user_id)
     ) -> JSONResponse:
+        logger.info(f"Creating task for user {token}: {task_data.title}")
         try:
             created_task_id = await create_task(
                 task=task_data,
@@ -37,93 +41,127 @@ class TaskViews:
                 db=self.db
             )
             if created_task_id:
+                logger.info(f"Task created successfully: {created_task_id}")
+                response = TaskCreateResponse(
+                    message="Task created successfully",
+                    task_id=str(created_task_id)
+                )
                 return JSONResponse(
-                    {
-                        "message": "Task created succesfully",
-                        "task_id": str(created_task_id)
-                    },
+                    response.model_dump(),
                     status_code=status.HTTP_201_CREATED
                 )
             else:
+                logger.warning(f"Task creation failed for user {token}")
                 return JSONResponse(
-                    {
-                        "message": "Task creation fails",
-                    },
+                    {"message": "Task creation failed"},
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
         except HTTPException as error:
-            logger.error(f"Failed task creating: {error}")
+            logger.error(f"HTTP error during task creation: {error}")
+            raise
+        except Exception as error:
+            logger.error(f"Unexpected error during task creation: {error}")
+            return JSONResponse(
+                {"message": "Internal server error"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-    @tasks_endpoints.patch("/{task_id}", summary="Changing task parameter")
-    async def patch_task(
+    @tasks_router.patch("/{task_id}", summary="Changing task parameter")
+    async def update_task_endpoint(
         self,
         task_id: UUID,
         task: TaskUpdate,
         token=Depends(get_current_user_id)
     ) -> JSONResponse:
+        logger.info(f"Updating task {task_id} for user {token}")
         try:
-            existing_task = await find_task_by_id(
+            existing_task = await get_task_by_id(
                 task_id=task_id,
                 user_id=token,
                 db=self.db
             )
             if existing_task:
-                updated_task = await update_task(
+                updated_task = await update_task_by_id(
                     task_id=task_id,
                     task_update_data=task,
                     user_id=token,
                     db=self.db
                 )
                 if updated_task:
+                    logger.info(f"Task {task_id} updated successfully")
+                    response = TaskUpdateResponse(
+                        message="Update successful",
+                        task_id=str(updated_task.task_id),
+                        new_title=updated_task.title if task.title else None,
+                        new_description=(
+                            updated_task.description
+                            if task.description else None
+                        ),
+                        new_appointed_at=(
+                            updated_task.appointed_at.isoformat()
+                            if updated_task.appointed_at else None
+                        )
+                    )
                     return JSONResponse(
-                        {
-                            "message": "Update successfull",
-                            "task_id": str(updated_task.task_id),
-                            "new_title": updated_task.title if task.title else None,
-                            "new_description": updated_task.description if task.description else None,
-                            "new_appointed_at": updated_task.appointed_at.isoformat() if updated_task.appointed_at else None
-                        },
+                        response.model_dump(),
                         status_code=status.HTTP_200_OK
                     )
+            logger.warning(
+                f"Task {task_id} not found or update failed for user {token}"
+            )
             return JSONResponse(
-                {
-                    "message": "Something went wrong"
-                },
+                {"message": "Task not found or update failed"},
                 status_code=status.HTTP_400_BAD_REQUEST
             )
         except HTTPException as error:
-            logger.error(f"Error during task update: {error}")
+            logger.error(f"HTTP error during task update: {error}")
+            raise
+        except Exception as error:
+            logger.error(f"Unexpected error during task update: {error}")
+            return JSONResponse(
+                {"message": "Internal server error"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-    @tasks_endpoints.delete("/{task_id}", summary="Delete the specified task")
-    async def delete_task_view(
+    @tasks_router.delete("/{task_id}", summary="Delete the specified task")
+    async def delete_task_endpoint(
         self,
         task_id: UUID,
         token=Depends(get_current_user_id),
     ) -> JSONResponse:
+        logger.info(f"Deleting task {task_id} for user {token}")
         try:
-            deleted = await delete_task(
+            deleted = await remove_task(
                 task_id=task_id,
                 user_id=token,
                 db=self.db,
             )
             if deleted:
+                logger.info(f"Task {task_id} deleted successfully")
                 return JSONResponse(
                     {"message": "Task deleted successfully"},
                     status_code=status.HTTP_200_OK,
                 )
+            logger.warning(f"Task {task_id} not found for user {token}")
             return JSONResponse(
                 {"message": "Task not found"},
                 status_code=status.HTTP_404_NOT_FOUND,
             )
         except HTTPException as error:
-            logger.error(f"Error during task deletion: {error}")
+            logger.error(f"HTTP error during task deletion: {error}")
+            return JSONResponse(
+                {"message": "Internal server error"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except Exception as error:
+            logger.error(f"Unexpected error during task deletion: {error}")
             return JSONResponse(
                 {"message": "Internal server error"},
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @tasks_endpoints.get("/", summary="Get all tasks of user")
-    async def get_tasks(
+    @tasks_router.get("/", summary="Get all tasks of user")
+    async def get_tasks_endpoint(
         self,
         token=Depends(get_current_user_id),
         page: int = Query(1, ge=1, description="Page number"),
@@ -131,13 +169,22 @@ class TaskViews:
             10, ge=1, le=100, description="Number of tasks per page"
         )
     ) -> JSONResponse:
+        logger.info(
+            f"Getting tasks for user {token}, "
+            f"page {page}, size {size}"
+        )
         try:
             skip = (page - 1) * size
-            tasks = await get_all_tasks_by_user(token, self.db, skip, size)
-            total_tasks = await get_tasks_count_by_user(token, self.db)
+            tasks = await get_user_tasks(token, self.db, skip, size)
+            total_tasks = await count_user_tasks(token, self.db)
             total_pages = (
                 total_tasks + size - 1
             ) // size if size > 0 else 0
+
+            logger.info(
+                f"Retrieved {len(tasks)} tasks for user {token}, "
+                f"page {page}/{total_pages}"
+            )
 
             return JSONResponse(
                 {

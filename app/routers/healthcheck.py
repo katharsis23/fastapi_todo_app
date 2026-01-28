@@ -4,6 +4,7 @@ from fastapi.routing import APIRouter
 from fastapi.exceptions import HTTPException
 from loguru import logger
 from app.s3_client import s3_client
+from app.redis_client import redis_session
 
 
 health_router = APIRouter(prefix="/health")
@@ -35,4 +36,26 @@ async def s3_healthcheck():
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"status": "unhealthy", "detail": str(e)}
+        )
+
+
+@health_router.get("/redis_healthcheck", description="Healthcheck of the Redis server")
+async def redis_healthcheck():
+    try:
+        async with redis_session() as session:
+            await session.set("healthcheck_key", "ok", ex=10)
+            value = await session.get("healthcheck_key")
+
+            if value == "ok":
+                return {
+                    "status": "healthy",
+                    "message": "Redis server is reachable",
+                }
+            raise Exception("Redis returned unexpected value")
+
+    except Exception as error:
+        logger.error(f"Redis Healthcheck failed: {error}")
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "unhealthy", "detail": str(error)}
         )

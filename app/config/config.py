@@ -42,3 +42,15 @@ class S3Config(BaseSettings):
 
 
 S3_CONFIG = S3Config()
+
+
+class RedisConfig(BaseSettings):
+    redis_url: SecretStr = Field(alias="REDIS_URL")
+
+    model_config = SettingsConfigDict(
+        title="Redis configuration",
+        env_file=None
+    )
+
+
+REDIS_CONFIG = RedisConfig()

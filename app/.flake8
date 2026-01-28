@@ -1,0 +1,21 @@
+[flake8]
+
+# E501: line too long
+# F401: module imported but unused
+# F403: 'from module import *' used; unable to detect undefined names
+# B008: Do not perform function calls in default
+extend-ignore = E501, F401, F403, B008
+
+exclude = 
+    .git,
+    __pycache__,
+    venv,
+    .venv,
+    pgdata,
+    migrations,
+    build,
+    dist
+
+max-complexity = 10
+
+max-line-length = 120

@@ -1,0 +1,36 @@
+# Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+typing-inspect
+fastapi-utils
+
+# Database
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+greenlet==3.1.1
+
+# Validation & Settings
+pydantic[email]==2.9.2
+pydantic-settings==2.6.0
+python-dotenv==1.0.1
+
+# Security & Hashing
+bcrypt==4.2.0
+pyjwt==2.10.1
+
+# Utils
+loguru==0.7.2
+fastapi_utils
+
+# S3 bucket
+aioboto3==15.5.0
+
+# Alembic
+alembic==1.18.1
+psycopg2-binary==2.9.11
+
+# Multipart
+python-multipart==0.0.22
+
+# Image
+Pillow==12.1.0

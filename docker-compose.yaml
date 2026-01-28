@@ -53,11 +53,18 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   createbuckets:
     image: minio/mc
     depends_on:
-      - s3-bucket
+      s3-bucket:
+        condition:
+          service_healthy
     volumes:
       - ./static/default_avatar.jpeg:/tmp/default_avatar.jpeg
     env_file: .env
@@ -65,9 +72,12 @@ services:
       /bin/sh -c "
       sleep 5;
       /usr/bin/mc alias set myminio http://s3-bucket:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      
       /usr/bin/mc mb myminio/avatars || true;
-      /usr/bin/mc anonymous set public myminio/avatars || true;
+      /usr/bin/mc anonymous set download myminio/avatars; 
+      
       /usr/bin/mc cp /tmp/default_avatar.jpeg myminio/avatars/default_avatar.jpeg || true;
+      
       /usr/bin/mc mb myminio/notes || true;
       exit 0;
       "

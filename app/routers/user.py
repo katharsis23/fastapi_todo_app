@@ -26,17 +26,17 @@ class UserViews:
 
     @user_router.post("/login", summary="Login")
     async def login_endpoint(self, user_data: UserLogin) -> JSONResponse:
-        logger.info(f"Login attempt for user: {user_data.username}")
+        logger.info(f"Login attempt for user: {user_data.email}")
         try:
             user = await authenticate_user(db=self.db, user=user_data)
             if not user:
-                logger.warning(f"Login failed for user: {user_data.username}")
+                logger.warning(f"Login failed for user: {user_data.email}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid credentials"
                 )
             token = create_access_token(user_id=user.user_id)
-            logger.info(f"User {user_data.username} logged in successfully")
+            logger.info(f"User {user_data.email} logged in successfully")
             return JSONResponse(
                 {
                     "access_token": token,
@@ -55,12 +55,12 @@ class UserViews:
 
     @user_router.post("/signup", summary="Create user")
     async def signup_endpoint(self, user_data: UserSignup) -> JSONResponse:
-        logger.info(f"Signup attempt for user: {user_data.username}")
+        logger.info(f"Signup attempt for user: {user_data.email}")
         try:
             new_user = await create_user(db=self.db, user=user_data)
             if new_user:
                 token = create_access_token(user_id=new_user.user_id)
-                logger.info(f"User {user_data.username} created successfully")
+                logger.info(f"User {user_data.email} created successfully")
                 return JSONResponse(
                     {
                         "message": "User created",

@@ -15,7 +15,7 @@ services:
       postgres:
         condition: service_healthy
       s3-bucket:
-        condition: service_started
+        condition: service_healthy
 
   postgres:
     image: postgres:latest

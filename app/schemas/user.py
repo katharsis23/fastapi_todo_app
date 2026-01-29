@@ -1,26 +1,17 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, EmailStr
 
 
 class UserLogin(BaseModel):
-    username: str = Field(
-        ...,
-        min_length=3,
-        max_length=50,
-        description="Username (3-50 characters)"
-    )
     password: str = Field(
         ...,
         min_length=5,
         max_length=100,
         description="Password (5-100 characters)"
     )
-
-    @field_validator('username')
-    @classmethod
-    def validate_username(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError('Username cannot be empty')
-        return v.strip().lower()
+    email: EmailStr = Field(
+        ...,
+        description="Valid email address"
+    )
 
     @field_validator('password')
     @classmethod
@@ -28,6 +19,11 @@ class UserLogin(BaseModel):
         if not v.strip():
             raise ValueError('Password cannot be empty')
         return v
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return v.strip().lower()
 
 
 class UserSignup(BaseModel):
@@ -42,6 +38,10 @@ class UserSignup(BaseModel):
         min_length=5,
         max_length=100,
         description="Password (5-100 characters)"
+    )
+    email: EmailStr = Field(
+        ...,
+        description="Valid email address"
     )
 
     @field_validator('username')
@@ -61,3 +61,8 @@ class UserSignup(BaseModel):
         if not v.strip():
             raise ValueError('Password cannot be empty')
         return v
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return v.strip().lower()

@@ -75,6 +75,12 @@ class User(DeclarativeBase):
         nullable=True,
         comment="URL to user avatar image"
     )
+    email: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False,
+        unique=True,
+        comment="User email"
+    )
 
     tasks: Mapped[list["Task"]] = relationship(
         "Task",

@@ -2,7 +2,7 @@ from app.models.models import User
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
-from app.schemas.user import UserLogin
+from app.schemas.user import UserLogin, UserSignup
 from app.utils.password_manager import hash_password, verify_password
 import uuid
 from uuid import UUID
@@ -17,19 +17,20 @@ async def find_user_by_id(user_id: UUID, db: AsyncSession) -> User | None:
         return None
 
 
-async def create_user(user: UserLogin, db: AsyncSession) -> User | None:
+async def create_user(user: UserSignup, db: AsyncSession) -> User | None:
     try:
-        query = await db.execute(select(User).where(User.username == user.username))
+        query = await db.execute(select(User).where(User.email == user.email))
         existing_user = query.scalar_one_or_none()
 
         if existing_user:
-            logger.warning(f"User {user.username} already exists")
+            logger.warning(f"User with email {user.email} already exists")
             return None
 
         hashed_pw = hash_password(user.password)
         user_to_add = User(
             username=user.username,
-            password=hashed_pw
+            password=hashed_pw,
+            email=user.email
         )
 
         db.add(user_to_add)
@@ -45,9 +46,8 @@ async def create_user(user: UserLogin, db: AsyncSession) -> User | None:
 
 async def authenticate_user(user: UserLogin, db: AsyncSession) -> User | None:
     try:
-        query = await db.execute(select(User).where(User.username == user.username))
+        query = await db.execute(select(User).where(User.email == user.email))
         existing_user = query.scalar_one_or_none()
-
         if existing_user and verify_password(user.password, existing_user.password):
             return existing_user
         return None

@@ -81,6 +81,12 @@ class User(DeclarativeBase):
         unique=True,
         comment="User email"
     )
+    is_verified: Mapped[bool] = mapped_column(
+        default=False,
+        nullable=False,
+        comment="Is user verified",
+        server_default='false'
+    )
 
     tasks: Mapped[list["Task"]] = relationship(
         "Task",

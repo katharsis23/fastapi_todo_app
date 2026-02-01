@@ -66,3 +66,8 @@ class UserSignup(BaseModel):
     @classmethod
     def validate_email(cls, v: str) -> str:
         return v.strip().lower()
+
+
+class UserVerify(BaseModel):
+    email: EmailStr = Field(..., description="User email")
+    code: str = Field(..., description="Verification code")

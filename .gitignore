@@ -211,3 +211,4 @@ __marimo__/
 venv
 alembic.ini
 **/alembic/**
+todo.md

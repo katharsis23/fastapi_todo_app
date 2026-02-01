@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 redis_client = aioredis.from_url(
     REDIS_CONFIG.redis_url.get_secret_value(),
     decode_responses=True,
-    health_check_interval=30
+    health_check_interval=30,
+    encoding='utf-8'
 )
 
 

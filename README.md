@@ -216,6 +216,17 @@ Refer to `.env.sample` for all available configuration options:
 - `S3_ENDPOINT_URL`
 - `S3_BUCKET_AVATARS`, `S3_BUCKET_NOTES`
 
+#### Redis
+- `REDIS_URL`
+- `REDIS_USER`, `REDIS_USER_PASSWORD`, `REDIS_PASSWORD`
+
+#### SMTP
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`
+
+#### Backend
+- `DEVELOPMENT_MODE`: bool. 
+If enabled, container installs dev dependencies and DOES NOT send emails. 
+
 ## Issues & Support
 
 For issues, questions, or suggestions:

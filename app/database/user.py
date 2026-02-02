@@ -95,3 +95,19 @@ async def get_avatar(user_id: UUID, db: AsyncSession) -> str | None:
     except Exception as error:
         logger.error(f"Error during avatar retrieval: {error}")
         raise error
+
+
+async def verify_user(email: str, db: AsyncSession) -> User | None:
+    try:
+        query = await db.execute(select(User).where(User.email == email))
+        user = query.scalar_one_or_none()
+        if user:
+            user.is_verified = True
+            await db.commit()
+            await db.refresh(user)
+            return user
+        return None
+    except Exception as error:
+        await db.rollback()
+        logger.error(f"Error verifying user: {error}")
+        raise error

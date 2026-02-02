@@ -54,3 +54,19 @@ class RedisConfig(BaseSettings):
 
 
 REDIS_CONFIG = RedisConfig()
+
+
+class SMTPConfig(BaseSettings):
+    host: str = Field(alias="SMTP_HOST")
+    port: str = Field(alias="SMTP_PORT")
+    user: str = Field(alias="SMTP_USER")
+    password: SecretStr = Field(alias="SMTP_PASSWORD")
+    from_: str = Field(alias="SMTP_FROM")
+
+    model_config = SettingsConfigDict(
+        title="SMTP configuration",
+        env_file=None
+    )
+
+
+SMTPCONFIG = SMTPConfig()

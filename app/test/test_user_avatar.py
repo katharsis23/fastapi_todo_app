@@ -9,40 +9,31 @@ def image_file():
 
 
 def test_get_avatar_no_avatar(authed_client):
-    with patch(
-        "app.routers.user.get_avatar",
-        new=AsyncMock(return_value=None),
-    ):
-        response = authed_client.get("/user/avatar")
+    with patch("app.database.user.get_avatar") as mock_get:
+        mock_get.return_value = None
 
-    assert response.status_code == 200
-    data = response.json()
-    assert "avatar_url" in data
-    assert "default_avatar.jpeg" in data["avatar_url"]
-    assert data["message"] == "Using default avatar"
+        response = authed_client.get("/user/avatar")
+        assert response.status_code == 200
+        assert "default_avatar.jpeg" in response.json()["avatar_url"]
+        assert response.json()["message"] == "Using default avatar"
 
 
 def test_get_avatar_with_avatar(authed_client):
-    with patch(
-        "app.routers.user.get_avatar",
-        new=AsyncMock(return_value="avatars/test-user-id"),
-    ):
-        response = authed_client.get("/user/avatar")
+    with patch("app.database.user.get_avatar") as mock_get:
+        mock_get.return_value = "avatars/test.jpg"
 
-    assert response.status_code == 200
-    data = response.json()
-    assert "avatar_url" in data
-    assert "avatars/test-user-id" in data["avatar_url"]
+        response = authed_client.get("/user/avatar")
+        assert response.status_code == 200
+        assert response.json()["avatar_url"] == "http://localhost:9000/avatars/test.jpg"
 
 
 def test_upload_avatar_success(authed_client, image_file):
-    with patch(
-        "app.routers.user.post_avatar",
-        new=AsyncMock(return_value="avatars/test-user-id"),
-    ) as mock_post_avatar, patch(
-        "app.routers.user.add_avatar",
-        new=AsyncMock(return_value=MagicMock()),
-    ) as mock_add_avatar:
+    s3_path = "avatars/test-user-id"
+    mock_user = MagicMock()
+    with patch("app.external.avatar.post_avatar") as mock_post, \
+         patch("app.database.user.add_avatar") as mock_add_db:
+        mock_post.return_value = s3_path
+        mock_add_db.return_value = mock_user    # Return user to signify success
         response = authed_client.post(
             "/user/avatar",
             files={"file": ("test.jpg", image_file, "image/jpeg")},
@@ -53,8 +44,8 @@ def test_upload_avatar_success(authed_client, image_file):
     assert data["message"] == "Avatar uploaded"
     assert "path" in data
     assert data["path"] == "avatars/test-user-id"
-    mock_post_avatar.assert_awaited_once()
-    mock_add_avatar.assert_awaited_once()
+    mock_post.assert_awaited_once()
+    mock_add_db.assert_awaited_once()
 
 
 def test_upload_avatar_invalid_file_type(authed_client):
@@ -70,10 +61,10 @@ def test_upload_avatar_invalid_file_type(authed_client):
 
 def test_upload_avatar_user_not_found(authed_client, image_file):
     with patch(
-        "app.routers.user.post_avatar",
+        "app.external.avatar.post_avatar",
         new=AsyncMock(return_value="avatars/test-user-id"),
     ), patch(
-        "app.routers.user.add_avatar",
+        "app.database.user.add_avatar",
         new=AsyncMock(return_value=None),
     ):
         response = authed_client.post(
@@ -86,28 +77,26 @@ def test_upload_avatar_user_not_found(authed_client, image_file):
 
 
 def test_delete_avatar_success(authed_client):
-    with patch(
-        "app.routers.user.delete_avatar_database",
-        new=AsyncMock(return_value=MagicMock()),
-    ) as mock_delete_avatar_db, patch(
-        "app.routers.user.delete_avatar",
-        new=AsyncMock(return_value=None),
-    ) as mock_delete_avatar:
+    mock_user = MagicMock()
+    with patch("app.database.user.delete_avatar_database") as mock_del_db, \
+         patch("app.external.avatar.delete_avatar") as mock_del_s3:
+        mock_del_db.return_value = mock_user
+        mock_del_s3.return_value = True
         response = authed_client.delete("/user/avatar")
 
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "Avatar deleted successfully"
-    mock_delete_avatar_db.assert_awaited_once()
-    mock_delete_avatar.assert_awaited_once()
+    mock_del_db.assert_awaited_once()
+    mock_del_s3.assert_awaited_once()
 
 
 def test_delete_avatar_no_existing_avatar(authed_client):
     with patch(
-        "app.routers.user.delete_avatar_database",
+        "app.database.user.delete_avatar_database",
         new=AsyncMock(return_value=None),
     ) as mock_delete_avatar_db, patch(
-        "app.routers.user.delete_avatar",
+        "app.external.avatar.delete_avatar",
         new=AsyncMock(return_value=None),
     ) as mock_delete_avatar:
         response = authed_client.delete("/user/avatar")
@@ -158,7 +147,7 @@ def test_avatar_endpoints_invalid_token(client):
 
 def test_upload_avatar_s3_error(authed_client, image_file):
     with patch(
-        "app.routers.user.post_avatar",
+        "app.external.avatar.post_avatar",
         new=AsyncMock(side_effect=Exception("S3 connection failed")),
     ):
         response = authed_client.post(
@@ -171,13 +160,11 @@ def test_upload_avatar_s3_error(authed_client, image_file):
 
 
 def test_delete_avatar_s3_error(authed_client):
-    with patch(
-        "app.routers.user.delete_avatar_database",
-        new=AsyncMock(return_value=MagicMock()),
-    ), patch(
-        "app.routers.user.delete_avatar",
-        new=AsyncMock(side_effect=Exception("S3 deletion failed")),
-    ):
+    mock_user = MagicMock()
+    with patch("app.database.user.delete_avatar_database") as mock_del_db, \
+         patch("app.external.avatar.delete_avatar") as mock_del_s3:
+        mock_del_db.return_value = mock_user
+        mock_del_s3.side_effect = Exception("S3 deletion failed")
         response = authed_client.delete("/user/avatar")
 
     assert response.status_code == 500

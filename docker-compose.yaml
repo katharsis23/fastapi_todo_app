@@ -18,6 +18,8 @@ services:
         condition: service_healthy
       s3-bucket:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
   postgres:
     image: postgres:latest

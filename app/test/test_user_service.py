@@ -1,24 +1,7 @@
 # test_user_service.py
 import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock
-from app.main import app
+from unittest.mock import AsyncMock, patch
 import uuid
-
-
-@pytest.fixture
-def client():
-    def override_get_db():
-        mock_session = AsyncMock()
-        mock_session.__aenter__.return_value = mock_session
-        mock_session.__aexit__.return_value = True
-        return mock_session
-
-    with TestClient(
-        app=app,
-        raise_server_exceptions=True,
-    ) as ac:
-        yield ac
 
 
 RANDOM_SUFFIX = uuid.uuid4().hex[:6]
@@ -28,7 +11,6 @@ TEST_PASS = "password123"
 
 
 def test_auth_flow(client):
-    from unittest.mock import patch, AsyncMock
     signup_data = {
         "username": TEST_USER,
         "email": TEST_EMAIL,
@@ -68,8 +50,6 @@ def test_auth_flow(client):
         # We return a verified user in authentication mock, so it should succeed
         assert login_res.status_code == 200, f"Login failed: {login_res.text}"
         assert "access_token" in login_res.json()
-
-    app.dependency_overrides = {}
 
 
 @pytest.mark.skip
@@ -125,7 +105,6 @@ def test_signup_auth(client):
     }
     signup_response = client.post("/user/signup", json=signup_data)
     assert signup_response.status_code == 400
-    app.dependency_overrides = {}
 
 
 def test_login_with_invalid_email(client):
@@ -135,7 +114,6 @@ def test_login_with_invalid_email(client):
     }
     response = client.post("/user/login", json=login_data)
     assert response.status_code == 422  # Email validation error
-    app.dependency_overrides = {}
 
 
 def test_signup_with_invalid_email(client):
@@ -146,7 +124,6 @@ def test_signup_with_invalid_email(client):
     }
     response = client.post("/user/signup", json=signup_data)
     assert response.status_code == 422  # Email validation error
-    app.dependency_overrides = {}
 
 
 def test_login_with_empty_email(client):
@@ -156,4 +133,3 @@ def test_login_with_empty_email(client):
     }
     response = client.post("/user/login", json=login_data)
     assert response.status_code == 422  # Validation error
-    app.dependency_overrides = {}

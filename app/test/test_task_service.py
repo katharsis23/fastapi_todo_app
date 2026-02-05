@@ -1,24 +1,7 @@
 import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch, MagicMock
-from app.main import app
 from uuid import uuid4
 from datetime import datetime
-
-
-@pytest.fixture
-def client():
-    def override_get_db():
-        mock_session = AsyncMock()
-        mock_session.__aenter__.return_value = mock_session
-        mock_session.__aexit__.return_value = True
-        return mock_session
-
-    with TestClient(
-        app=app,
-        raise_server_exceptions=True,
-    ) as ac:
-        yield ac
 
 
 @pytest.fixture
@@ -241,15 +224,8 @@ class TestTaskViews:
         :param auth_token: A valid authentication token
         :type auth_token: str
         """
-        with patch(
-            "app.database.task.get_user_tasks",
-            new_callable=AsyncMock,
-            return_value=[]
-        ), patch(
-            "app.database.task.count_user_tasks",
-            new_callable=AsyncMock,
-            return_value=0
-        ):
+        with patch("app.database.task.get_user_tasks", new_callable=AsyncMock, return_value=[]), \
+                patch("app.database.task.count_user_tasks", new_callable=AsyncMock, return_value=0):
             response = client.get(
                 "/task/",
                 headers={"Authorization": f"Bearer {auth_token}"}

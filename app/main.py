@@ -6,6 +6,8 @@ from app.routers.healthcheck import health_router
 from app.routers.user import user_router
 from app.routers.task import tasks_router
 from app.middleware.logging import LoggingMiddleware, ErrorHandlingMiddleware
+from app.middleware.rate_limiter import RateLimitMiddleware
+from app.redis_client import redis_client
 from loguru import logger
 import os
 
@@ -31,6 +33,12 @@ app = FastAPI(
 # Middleware
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ErrorHandlingMiddleware)
+app.add_middleware(
+    RateLimitMiddleware,
+    redis_client=redis_client,
+    limit=50,
+    window=60
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

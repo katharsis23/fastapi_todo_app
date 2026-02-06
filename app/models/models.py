@@ -1,6 +1,6 @@
 from app.database import DeclarativeBase
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, Text, TIMESTAMP, ForeignKey
+from sqlalchemy import String, Text, TIMESTAMP, ForeignKey, JSON
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING    # noqa: TYP001
@@ -70,11 +70,6 @@ class User(DeclarativeBase):
         unique=True,
         comment="Unique username"
     )
-    avatar_url: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-        comment="URL to user avatar image"
-    )
     email: Mapped[str] = mapped_column(
         String(150),
         nullable=False,
@@ -93,4 +88,40 @@ class User(DeclarativeBase):
         back_populates="user",
         lazy="select",
         cascade="all, delete-orphan"
+    )
+    avatar: Mapped["Avatar"] = relationship(
+        "Avatar",
+        back_populates="user",
+        lazy="select",
+        cascade="all, delete-orphan"
+    )
+
+
+class Avatar(DeclarativeBase):
+    __tablename__ = "avatars"
+
+    id_: Mapped[UUID] = mapped_column(
+        primary_key=True,
+        default=uuid4,
+        comment="Unique identifier for the avatar"
+    )
+    url: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        comment="URL to user avatar image"
+    )
+    user_fk: Mapped[UUID] = mapped_column(
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+        comment="Foreign key to user"
+    )
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="avatar",
+        lazy="select"
+    )
+    metadata_: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=False,
+        comment="Metadata for the avatar"
     )

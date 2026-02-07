@@ -8,11 +8,17 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+ARG DEVELOPMENT_MODE=true
+ENV DEVELOPMENT_MODE=${DEVELOPMENT_MODE}
+
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY requirements_dev.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir -r requirements_dev.txt
+RUN if [ "${DEVELOPMENT_MODE}" = "true" ]; then \
+    pip install --no-cache-dir -r requirements_dev.txt; \
+    fi
 
 COPY . .
 

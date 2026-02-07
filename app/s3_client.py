@@ -9,8 +9,9 @@ class S3Client:
             "endpoint_url": S3_CONFIG.endpoint_url,
             "aws_access_key_id": S3_CONFIG.access_key,
             "aws_secret_access_key": S3_CONFIG.secret_key.get_secret_value(),
+            "region_name": "us-east-1",
         }
-        self.bucket_name = {S3_CONFIG.bucket_notes, S3_CONFIG.bucket_avatars}
+        self.allowed_buckets = {S3_CONFIG.bucket_notes, S3_CONFIG.bucket_avatars}
         self.session = aioboto3.Session()
 
     @asynccontextmanager
@@ -18,24 +19,19 @@ class S3Client:
         async with self.session.client("s3", **self.config) as client:
             yield client
 
-    async def upload_file(self, file: bytes, bucket_name: str, object_name: str) -> None:
-        if bucket_name not in self.bucket_name:
-            raise ValueError("Invalid bucket name")
+    async def upload_file(self, file: bytes, bucket_name: str, object_name: str, content_type: str = "image/jpeg") -> str:
+        if bucket_name not in self.allowed_buckets:
+            raise ValueError(f"Bucket {bucket_name} is not allowed")
+
         async with self.get_client() as client:
             await client.put_object(
                 Bucket=bucket_name,
                 Key=object_name,
-                Body=file
+                Body=file,
+                ContentType=content_type
             )
 
-    async def delete_file(self, bucket_name: str, object_name: str) -> None:
-        if bucket_name not in self.bucket_name:
-            raise ValueError("Invalid bucket name")
-        async with self.get_client() as client:
-            await client.delete_object(
-                Bucket=bucket_name,
-                Key=object_name
-            )
+        return f"{self.config['endpoint_url']}/{bucket_name}/{object_name}"
 
 
 s3_client = S3Client()

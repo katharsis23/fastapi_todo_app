@@ -2,14 +2,7 @@ from fastapi import status, Depends, HTTPException, APIRouter, Query
 from fastapi_utils.cbv import cbv
 from fastapi.responses import JSONResponse
 from app.database.database import get_db, AsyncSession
-from app.database.task import (
-    create_task,
-    update_task_by_id,
-    remove_task,
-    get_task_by_id,
-    get_user_tasks,
-    count_user_tasks
-)
+from app.database import task as task_db
 from app.utils.oauth2Schema import get_current_user_id
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.schemas.responses import (
@@ -35,7 +28,7 @@ class TaskViews:
     ) -> JSONResponse:
         logger.info(f"Creating task for user {token}: {task_data.title}")
         try:
-            created_task_id = await create_task(
+            created_task_id = await task_db.create_task(
                 task=task_data,
                 user_id=token,
                 db=self.db
@@ -75,13 +68,13 @@ class TaskViews:
     ) -> JSONResponse:
         logger.info(f"Updating task {task_id} for user {token}")
         try:
-            existing_task = await get_task_by_id(
+            existing_task = await task_db.get_task_by_id(
                 task_id=task_id,
                 user_id=token,
                 db=self.db
             )
             if existing_task:
-                updated_task = await update_task_by_id(
+                updated_task = await task_db.update_task_by_id(
                     task_id=task_id,
                     task_update_data=task,
                     user_id=token,
@@ -131,7 +124,7 @@ class TaskViews:
     ) -> JSONResponse:
         logger.info(f"Deleting task {task_id} for user {token}")
         try:
-            deleted = await remove_task(
+            deleted = await task_db.remove_task(
                 task_id=task_id,
                 user_id=token,
                 db=self.db,
@@ -155,6 +148,7 @@ class TaskViews:
             )
         except Exception as error:
             logger.error(f"Unexpected error during task deletion: {error}")
+            print(f"DEBUG_TASK_ERROR: {error}")
             return JSONResponse(
                 {"message": "Internal server error"},
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -175,8 +169,8 @@ class TaskViews:
         )
         try:
             skip = (page - 1) * size
-            tasks = await get_user_tasks(token, self.db, skip, size)
-            total_tasks = await count_user_tasks(token, self.db)
+            tasks = await task_db.get_user_tasks(token, self.db, skip, size)
+            total_tasks = await task_db.count_user_tasks(token, self.db)
             total_pages = (
                 total_tasks + size - 1
             ) // size if size > 0 else 0

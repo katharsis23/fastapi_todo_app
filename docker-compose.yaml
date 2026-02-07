@@ -5,17 +5,21 @@ services:
     build: .
     container_name: FASTAPI_BACKEND
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    environment:
+      - DEVELOPMENT_MODE=${DEVELOPMENT_MODE:-True}
     volumes:
       - .:/app
     env_file:
       - .env
-    ports: 
+    ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
       s3-bucket:
-        condition: service_started
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   postgres:
     image: postgres:latest
@@ -53,24 +57,82 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   createbuckets:
     image: minio/mc
     depends_on:
-      - s3-bucket
+      s3-bucket:
+        condition: service_healthy
     volumes:
       - ./static/default_avatar.jpeg:/tmp/default_avatar.jpeg
     env_file: .env
     entrypoint: >
-      /bin/sh -c "
-      sleep 5;
-      /usr/bin/mc alias set myminio http://s3-bucket:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
-      /usr/bin/mc mb myminio/avatars || true;
-      /usr/bin/mc anonymous set public myminio/avatars || true;
+      /bin/sh -c " sleep 5; /usr/bin/mc alias set myminio http://s3-bucket:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+
+      /usr/bin/mc mb myminio/avatars || true; /usr/bin/mc anonymous set download myminio/avatars; 
+
       /usr/bin/mc cp /tmp/default_avatar.jpeg myminio/avatars/default_avatar.jpeg || true;
-      /usr/bin/mc mb myminio/notes || true;
-      exit 0;
-      "
+
+      /usr/bin/mc mb myminio/notes || true; exit 0; "
+  redis:
+    image: redis:latest
+    container_name: redis_container
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_USER=${REDIS_USER}
+      - REDIS_USER_PASSWORD=${REDIS_USER_PASSWORD}
+    ports:
+      - "6380:6380"
+    volumes:
+      - /tmp/fastapi_todo_app_redis/redisdata:/data
+    env_file:
+      - ./.env
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    command: >
+      sh -c '
+        mkdir -p /usr/local/etc/redis &&
+        echo "bind 0.0.0.0" > /usr/local/etc/redis/redis.conf &&
+        echo "port 6380" >> /usr/local/etc/redis/redis.conf &&
+        echo "appendonly yes" >> /usr/local/etc/redis/redis.conf &&
+        echo "user default on >$$REDIS_PASSWORD ~* +@all" > /usr/local/etc/redis/users.acl &&
+        echo "user $$REDIS_USER on >$$REDIS_USER_PASSWORD ~* &* +@all" >> /usr/local/etc/redis/users.acl &&
+        redis-server /usr/local/etc/redis/redis.conf --aclfile /usr/local/etc/redis/users.acl
+      '
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-p", "6380", "-a", "$REDIS_PASSWORD", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+  worker:
+    build: .
+    container_name: CELERY_WORKER
+    command: celery -A app.core.celery_worker worker --loglevel=info
+    environment:
+      - DEVELOPMENT_MODE=${DEVELOPMENT_MODE:-True}
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    volumes:
+      - .:/app
 
 volumes:
   postgres_data:

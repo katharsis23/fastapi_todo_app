@@ -3,6 +3,7 @@ fastapi==0.115.0
 uvicorn[standard]==0.32.0
 typing-inspect
 fastapi-utils
+fastapi-mail==1.6.1
 
 # Database
 sqlalchemy==2.0.36
@@ -10,8 +11,8 @@ asyncpg==0.30.0
 greenlet==3.1.1
 
 # Validation & Settings
-pydantic[email]==2.9.2
-pydantic-settings==2.6.0
+pydantic[email]
+pydantic-settings
 python-dotenv==1.0.1
 
 # Security & Hashing
@@ -34,3 +35,9 @@ python-multipart==0.0.22
 
 # Image
 Pillow==12.1.0
+
+# Redis
+redis>=5.0.0
+
+# Celery
+celery==5.6.2

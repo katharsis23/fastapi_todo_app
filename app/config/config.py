@@ -42,3 +42,31 @@ class S3Config(BaseSettings):
 
 
 S3_CONFIG = S3Config()
+
+
+class RedisConfig(BaseSettings):
+    redis_url: SecretStr = Field(alias="REDIS_URL")
+
+    model_config = SettingsConfigDict(
+        title="Redis configuration",
+        env_file=None
+    )
+
+
+REDIS_CONFIG = RedisConfig()
+
+
+class SMTPConfig(BaseSettings):
+    host: str = Field(alias="SMTP_HOST")
+    port: str = Field(alias="SMTP_PORT")
+    user: str = Field(alias="SMTP_USER")
+    password: SecretStr = Field(alias="SMTP_PASSWORD")
+    from_: str = Field(alias="SMTP_FROM")
+
+    model_config = SettingsConfigDict(
+        title="SMTP configuration",
+        env_file=None
+    )
+
+
+SMTPCONFIG = SMTPConfig()

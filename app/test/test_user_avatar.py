@@ -1,6 +1,7 @@
 import io
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+from loguru import logger
 
 
 @pytest.fixture
@@ -169,3 +170,58 @@ def test_delete_avatar_s3_error(authed_client):
 
     assert response.status_code == 500
     assert "Internal server error" in response.json()["detail"]
+
+
+def test_get_avatar_v2(authed_client):
+    with patch("app.database.avatar.get_avatar_by_user_id_v2") as mock_get:
+        mock_get.return_value = "avatars/test.jpg"
+
+        response = authed_client.get("/user/avatar/v2")
+        assert response.status_code == 200
+        assert response.json()["avatar_url"] == "http://localhost:9000/avatars/default_avatar.jpeg"
+
+
+def test_get_avatar_v2_no_avatar(authed_client):
+    with patch("app.database.avatar.get_avatar_by_user_id_v2") as mock_get:
+        mock_get.return_value = None
+
+        response = authed_client.get("/user/avatar/v2")
+        assert response.status_code == 200
+        assert response.json()["avatar_url"] == "http://localhost:9000/avatars/default_avatar.jpeg"
+
+
+def test_upload_avatar_v2_success(authed_client, image_file):
+    try:
+        response = authed_client.post(
+            "/user/avatar/v2",
+            files={"file": ("test.jpg", image_file, "image/jpeg")},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["message"] == "Avatar uploaded"
+        assert "path" in response.json()
+        assert response.json()["path"] == "avatars/test-user-id"
+    except Exception as e:
+        logger.error(e)
+
+
+def test_upload_avatar_v2_invalid_file_type(authed_client):
+    invalid_file = io.BytesIO(b"This is not an image")
+
+    response = authed_client.post(
+        "/user/avatar/v2",
+        files={"file": ("test.txt", invalid_file, "text/plain")},
+    )
+    assert response.status_code == 400
+    assert "Only images allowed" in response.json()["detail"]
+
+
+def test_upload_avatar_v2_file_too_large(authed_client):
+    large_file = io.BytesIO(b"This is a large file" * 1024 * 1024 * 10)
+
+    response = authed_client.post(
+        "/user/avatar/v2",
+        files={"file": ("test.jpg", large_file, "image/jpeg")},
+    )
+    assert response.status_code == 400
+    assert "File size exceeds 10MB limit" in response.json()["detail"]

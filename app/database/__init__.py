@@ -20,3 +20,8 @@ from app.database.task import (
     get_user_tasks,
     count_user_tasks
 )
+from app.database.avatar import (
+    add_avatar_v2,
+    get_avatar_by_user_id_v2,
+    delete_avatar_v2
+)

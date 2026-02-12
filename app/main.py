@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
 # App core
 app = FastAPI(
     title="FastApi_todo_app",
-    version="0.0.1",
+    version="0.0.3",
     summary="Simple todo app created as a pet project",
     lifespan=lifespan
 )

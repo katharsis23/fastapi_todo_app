@@ -1,8 +1,22 @@
 # FastAPI Todo & Notes App
 
-A modern web application built with FastAPI that combines task management with markdown note-taking capabilities, all tied to user accounts for seamless cross-device synchronization.
+A modern, production-ready web application built with FastAPI that combines task management with markdown note-taking capabilities, all tied to user accounts for seamless cross-device synchronization.
+## Quick Start
 
-## Features
+```bash
+git clone https://github.com/katharsis23/fastapi_todo_app.git
+cd fastapi_todo_app
+cp .env.sample .env
+# Edit .env with your configuration
+docker-compose up -d
+```
+
+**Access Points:**
+- **API Documentation**: `http://localhost:8000/docs`
+- **MinIO Console**: `http://localhost:9001`
+- **Database**: `localhost:5430`
+
+## ✨ Features
 
 ### Core Functionality
 

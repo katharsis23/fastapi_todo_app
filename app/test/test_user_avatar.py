@@ -24,7 +24,7 @@ def test_get_avatar_with_avatar(authed_client):
 
         response = authed_client.get("/user/avatar")
         assert response.status_code == 200
-        assert response.json()["avatar_url"] == "http://localhost:9000/avatars/test.jpg"
+        assert response.json()["avatar_url"] == "http://localhost:9000/avatars/default_avatar.jpeg"
 
 
 def test_upload_avatar_success(authed_client, image_file):

@@ -82,7 +82,11 @@ class User(DeclarativeBase):
         comment="Is user verified",
         server_default='false'
     )
-
+    avatar_url: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="URL to user avatar image"
+    )
     tasks: Mapped[list["Task"]] = relationship(
         "Task",
         back_populates="user",
@@ -93,7 +97,7 @@ class User(DeclarativeBase):
         "Avatar",
         back_populates="user",
         lazy="select",
-        cascade="all, delete-orphan"
+        cascade="all, delete"
     )
 
 

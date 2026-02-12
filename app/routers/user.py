@@ -13,6 +13,8 @@ from uuid import UUID
 from app.core.celery_worker import start_verification
 from app.schemas.user import UserVerify
 from app.redis_client import redis_session
+from app.database import avatar as avatar_db
+from datetime import datetime
 
 user_router = APIRouter(prefix="/user", tags=["User"])
 
@@ -155,7 +157,7 @@ class UserViews:
             content = await file.read()
             s3_path = await avatar_ext.post_avatar(user_id=user_id, file=content)
 
-            user = await user_db.add_avatar(user_id=user_id, avatar_url=s3_path, db=self.db)
+            user = await user_db.add_avatar(user_id=user_id, url=s3_path, db=self.db)
 
             if user:
                 return JSONResponse(
@@ -172,7 +174,7 @@ class UserViews:
 
     @user_router.get("/avatar", summary="Get avatar")
     async def get_avatar_endpoint(self, user_id: UUID = Depends(get_current_user_id)) -> JSONResponse:
-        avatar_path = await user_db.get_avatar(user_id=user_id, db=self.db)
+        avatar_path = await avatar_db.get_avatar_url_by_user_id_v2(user_id=user_id, db=self.db)
 
         if avatar_path:
             full_url = f"http://localhost:9000/{avatar_path}"
@@ -184,3 +186,46 @@ class UserViews:
                 "avatar_url": "http://localhost:9000/avatars/default_avatar.jpeg"
             }
         )
+
+    @user_router.get("/avatar/v2", summary="Get avatar")
+    async def get_avatar_endpoint_v2(self, user_id: UUID = Depends(get_current_user_id)) -> JSONResponse:
+        avatar_url = await avatar_db.get_avatar_url_by_user_id_v2(user_id=user_id, db=self.db)
+        if avatar_url:
+            full_url = f"http://localhost:9000/{avatar_url}"
+            return JSONResponse({"avatar_url": full_url})
+        return JSONResponse(
+            {
+                "message": "Using default avatar",
+                "avatar_url": "http://localhost:9000/avatars/default_avatar.jpeg"
+            }
+        )
+
+    @user_router.post("/avatar/v2", summary="Upload avatar")
+    async def upload_avatar_v2(self, file: UploadFile = File(...), user_id: UUID = Depends(get_current_user_id)) -> JSONResponse:
+        try:
+            if file.size > 1024 * 1024 * 10:
+                raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+
+            if not file.content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail="Only images allowed")
+
+            content = await file.read()
+            s3_path = await avatar_ext.post_avatar(user_id=user_id, file=content)
+            metadata = {
+                "uploaded_at": datetime.now().isoformat(),
+                "file_size": file.size,
+                "content_type": file.content_type
+            }
+            user = await avatar_db.add_avatar_v2(user_id=user_id, url=s3_path, db=self.db, metadata=metadata)
+
+            if user:
+                return JSONResponse(
+                    content={"message": "Avatar uploaded", "path": s3_path},
+                    status_code=status.HTTP_201_CREATED
+                )
+            raise HTTPException(status_code=404, detail="User not found")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Avatar upload failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")

@@ -9,7 +9,7 @@ from loguru import logger
 DeclarativeBase = declarative_base()
 
 postgresql_engine = create_async_engine(
-    url=POSTGRESQL_CONFIG.db_url,
+    url=POSTGRESQL_CONFIG.db_url.get_secret_value(),
     echo=True
 )
 

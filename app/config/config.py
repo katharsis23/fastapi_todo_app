@@ -3,7 +3,7 @@ from pydantic import Field, SecretStr
 
 
 class PostgresqlConfig(BaseSettings):
-    db_url: str = Field(alias="DATABASE_URL")
+    db_url: SecretStr = Field(alias="DATABASE_URL")
 
     model_config = SettingsConfigDict(
         title="PostgreSQL credential manager",

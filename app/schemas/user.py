@@ -71,3 +71,23 @@ class UserSignup(BaseModel):
 class UserVerify(BaseModel):
     email: EmailStr = Field(..., description="User email")
     code: str = Field(..., description="Verification code")
+
+
+class UserInfo(BaseModel):
+    email: EmailStr
+    username: str
+    is_verified: bool
+
+    class Config:
+        from_attributes = True
+
+
+class UserAuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserInfo
+    message: str | None = None
+
+
+class UserResendCode(BaseModel):
+    email: EmailStr

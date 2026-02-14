@@ -26,11 +26,13 @@ def test_auth_flow(client):
 
     mock_user = AsyncMock()
     mock_user.user_id = mock_user_id
+    mock_user.username = TEST_USER
     mock_user.email = TEST_EMAIL
     mock_user.is_verified = False  # Initially not verified
 
     mock_verified_user = AsyncMock()
     mock_verified_user.user_id = mock_user_id
+    mock_verified_user.username = TEST_USER
     mock_verified_user.email = TEST_EMAIL
     mock_verified_user.is_verified = True
 
@@ -40,8 +42,10 @@ def test_auth_flow(client):
 
         signup_res = client.post("/user/signup", json=signup_data)
 
-        assert signup_res.status_code == 201, f"Signup failed: {signup_res.text}"
-        assert "access_token" not in signup_res.json()
+        assert signup_res.status_code == 200, f"Signup failed: {signup_res.text}"
+        assert "access_token" in signup_res.json()
+        assert "user" in signup_res.json()
+        assert signup_res.json()["user"]["email"] == TEST_EMAIL
         assert "User created" in signup_res.json()["message"]
 
         login_data = {"email": TEST_EMAIL, "password": TEST_PASS}
@@ -50,9 +54,10 @@ def test_auth_flow(client):
         # We return a verified user in authentication mock, so it should succeed
         assert login_res.status_code == 200, f"Login failed: {login_res.text}"
         assert "access_token" in login_res.json()
+        assert "user" in login_res.json()
+        assert login_res.json()["user"]["email"] == TEST_EMAIL
 
 
-@pytest.mark.skip
 def test_verification_flow(client):
     # Mock Redis
     from unittest.mock import patch
@@ -65,17 +70,19 @@ def test_verification_flow(client):
 
     mock_user = AsyncMock()
     mock_user.user_id = uuid.uuid4()
+    mock_user.username = "verify_test"
     mock_user.email = "verify@example.com"
     mock_user.is_verified = False
 
     with patch("app.database.user.create_user", new_callable=AsyncMock, return_value=mock_user), \
          patch("app.routers.user.start_verification", new_callable=AsyncMock) as mock_verify:   # noqa: F841
         response = client.post("/user/signup", json=signup_data)
-        assert response.status_code == 201, f"Signup failed: {response.text}"
+        assert response.status_code == 200, f"Signup failed: {response.text}"
 
     # 2. Verify with correct code
     mock_verified_user = AsyncMock()
     mock_verified_user.user_id = mock_user.user_id
+    mock_verified_user.username = "verify_test"
     mock_verified_user.email = "verify@example.com"
     mock_verified_user.is_verified = True
 
@@ -87,13 +94,15 @@ def test_verification_flow(client):
         mock_redis.return_value.__aexit__.return_value = None
 
         # Setup mock return
-        mock_session.get.return_value = b"1234"
+        mock_session.get.return_value = "1234"
 
         verify_data = {"email": "verify@example.com", "code": "1234"}
         response = client.post("/user/verify", json=verify_data)
 
         assert response.status_code == 200
         assert "access_token" in response.json()
+        assert "user" in response.json()
+        assert response.json()["user"]["email"] == "verify@example.com"
         assert response.json()["message"] == "User verified successfully"
 
 
@@ -133,3 +142,18 @@ def test_login_with_empty_email(client):
     }
     response = client.post("/user/login", json=login_data)
     assert response.status_code == 422  # Validation error
+
+
+def test_resend_code(client, db_session):
+    from unittest.mock import MagicMock
+    mock_user = MagicMock()
+    mock_user.is_verified = False
+
+    db_session.scalar = AsyncMock(return_value=mock_user)
+
+    with patch("app.routers.user.start_verification", new_callable=AsyncMock) as mock_verify:
+        response = client.post("/user/resend-code", json={"email": "test@example.com"})
+
+        assert response.status_code == 200
+        assert "resent successfully" in response.json()["message"]
+        mock_verify.assert_called_once()

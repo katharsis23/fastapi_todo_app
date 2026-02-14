@@ -1,5 +1,5 @@
 from app.models.models import Avatar
-from sqlalchemy.future import select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 from uuid import UUID
@@ -36,9 +36,7 @@ async def add_avatar_v2(user_id: UUID, url: str, db: AsyncSession, metadata: dic
 
 async def get_avatar_by_user_id_v2(user_id: UUID, db: AsyncSession) -> Avatar | None:
     try:
-        query = await db.execute(select(Avatar).where(Avatar.user_fk == user_id))
-        avatar = query.scalar_one_or_none()
-        return avatar
+        return await db.scalar(select(Avatar).where(Avatar.user_fk == user_id))
     except Exception as error:
         logger.error(f"Error retrieving avatar: {error}")
         return None

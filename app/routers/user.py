@@ -1,9 +1,11 @@
 from fastapi.responses import JSONResponse
 from fastapi import status, Depends, APIRouter, HTTPException
 from fastapi_utils.cbv import cbv
-from app.schemas.user import UserLogin, UserSignup
+from app.schemas.user import UserLogin, UserSignup, UserAuthResponse, UserInfo
 from app.database import user as user_db
 from app.database.database import get_db, AsyncSession
+from sqlalchemy.future import select
+from app.models.models import User
 from app.utils.jwt_manager import create_access_token
 from app.external import avatar as avatar_ext
 from app.utils.oauth2Schema import get_current_user_id
@@ -11,10 +13,11 @@ from loguru import logger
 from fastapi import File, UploadFile
 from uuid import UUID
 from app.core.celery_worker import start_verification
-from app.schemas.user import UserVerify
+from app.schemas.user import UserVerify, UserResendCode
 from app.redis_client import redis_session
 from app.database import avatar as avatar_db
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 user_router = APIRouter(prefix="/user", tags=["User"])
 
@@ -23,8 +26,8 @@ user_router = APIRouter(prefix="/user", tags=["User"])
 class UserViews:
     db: AsyncSession = Depends(get_db)
 
-    @user_router.post("/login", summary="Login")
-    async def login_endpoint(self, user_data: UserLogin) -> JSONResponse:
+    @user_router.post("/login", summary="Login", response_model=UserAuthResponse)
+    async def login_endpoint(self, user_data: UserLogin) -> UserAuthResponse:
         logger.info(f"Login attempt for user: {user_data.email}")
         try:
             user = await user_db.authenticate_user(db=self.db, user=user_data)
@@ -44,12 +47,10 @@ class UserViews:
 
             token = create_access_token(user_id=user.user_id)
             logger.info(f"User {user_data.email} logged in successfully")
-            return JSONResponse(
-                {
-                    "access_token": token,
-                    "token_type": "bearer",
-                    "user_id": str(user.user_id)
-                }
+            return UserAuthResponse(
+                access_token=token,
+                user=UserInfo.model_validate(user),
+                message="Login successful"
             )
         except HTTPException:
             raise
@@ -60,28 +61,34 @@ class UserViews:
                 detail="Internal server error"
             )
 
-    @user_router.post("/signup", summary="Create user")
-    async def signup_endpoint(self, user_data: UserSignup) -> JSONResponse:
+    @user_router.post("/signup", summary="Create user", response_model=UserAuthResponse)
+    async def signup_endpoint(self, user_data: UserSignup) -> UserAuthResponse:
         logger.info(f"Signup attempt for user: {user_data.email}")
         try:
             new_user = await user_db.create_user(db=self.db, user=user_data)
             if new_user:
                 await start_verification(email=user_data.email)
                 logger.info(f"User {user_data.email} created successfully. Verification pending.")
-                return JSONResponse(
-                    {
-                        "message": "User created. Please verify your email.",
-                        "user_id": str(new_user.user_id)
-                    },
-                    status_code=status.HTTP_201_CREATED
+
+                token = create_access_token(user_id=new_user.user_id)
+                return UserAuthResponse(
+                    access_token=token,
+                    user=UserInfo.model_validate(new_user),
+                    message="User created. Please verify your email."
                 )
             logger.warning(f"Signup failed for user: {user_data.username}")
-            return JSONResponse(
-                {
-                    "message": "Signup failed, try to change the username"
-                },
-                status_code=status.HTTP_400_BAD_REQUEST
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Signup failed, try to change the username"
             )
+        except IntegrityError as e:
+            logger.warning(f"Integrity error during signup: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Signup failed: email or username already exists"
+            )
+        except HTTPException:
+            raise
         except Exception as error:
             logger.error(f"Unexpected error during signup: {error}")
             raise HTTPException(
@@ -89,13 +96,12 @@ class UserViews:
                 detail="Internal server error"
             )
 
-    @user_router.post("/verify", summary="Verify user email")
-    async def verify_user_endpoint(self, verify_data: UserVerify) -> JSONResponse:
+    @user_router.post("/verify", summary="Verify user email", response_model=UserAuthResponse)
+    async def verify_user_endpoint(self, verify_data: UserVerify) -> UserAuthResponse:
         logger.info(f"Verification attempt for: {verify_data.email}")
         try:
             async with redis_session() as session:
-                redis_code_bytes = await session.get(f"verification:{verify_data.email}")
-                redis_code = redis_code_bytes if redis_code_bytes else None
+                redis_code = await session.get(f"verification:{verify_data.email}")
 
             if not redis_code or redis_code != verify_data.code:
                 raise HTTPException(status_code=400, detail="Invalid code or expired")
@@ -103,13 +109,10 @@ class UserViews:
             verified_user = await user_db.verify_user(email=verify_data.email, db=self.db)
             if verified_user:
                 token = create_access_token(user_id=verified_user.user_id)
-                return JSONResponse(
-                    content={
-                        "message": "User verified successfully",
-                        "access_token": token,
-                        "token_type": "bearer"
-                    },
-                    status_code=status.HTTP_200_OK
+                return UserAuthResponse(
+                    access_token=token,
+                    user=UserInfo.model_validate(verified_user),
+                    message="User verified successfully"
                 )
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -117,6 +120,29 @@ class UserViews:
             raise
         except Exception as e:
             logger.error(f"Error verification: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @user_router.post("/resend-code", summary="Resend verification code")
+    async def resend_verify_code_endpoint(self, email_data: UserResendCode) -> JSONResponse:
+        logger.info(f"Resend code request for: {email_data.email}")
+        try:
+            user = await self.db.scalar(select(User).where(User.email == email_data.email))
+
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            if user.is_verified:
+                raise HTTPException(status_code=400, detail="User already verified")
+
+            await start_verification(email=email_data.email)
+            return JSONResponse(
+                content={"message": "Verification code resent successfully"},
+                status_code=status.HTTP_200_OK
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error resending code: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @user_router.delete("/avatar", summary="Delete avatar")

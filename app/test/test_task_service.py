@@ -11,12 +11,13 @@ def auth_token(client):
 
     mock_user = AsyncMock()
     mock_user.user_id = uuid4()
+    mock_user.username = "testuser"
     mock_user.email = "test@example.com"
     mock_user.is_verified = True  # CRITICAL: User must be verified
     mock_user.password = "hashed_pw"
 
     # Patch authenticate_user used by the login endpoint
-    with patch("app.database.user.authenticate_user", return_value=mock_user):
+    with patch("app.database.user.authenticate_user", new_callable=AsyncMock, return_value=mock_user):
         response = client.post("/user/login", json={
             "email": "test@example.com",
             "password": "12345"

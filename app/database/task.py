@@ -1,7 +1,6 @@
 from app.models.models import Task
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy import func
+from sqlalchemy import select, func
 from loguru import logger
 from app.schemas.task import TaskCreate, TaskUpdate
 from uuid import UUID
@@ -36,13 +35,12 @@ async def get_task_by_id(
     db: AsyncSession
 ) -> Optional[Task]:
     try:
-        query = await db.execute(
+        return await db.scalar(
             select(Task).where(
                 Task.task_id == task_id,
                 Task.user_fk == user_id
             )
         )
-        return query.scalar_one_or_none()
     except Exception as error:
         logger.error(f"Failed to find the task: {error}")
         return None
@@ -119,11 +117,10 @@ async def get_user_tasks(
 
 async def count_user_tasks(user_id: UUID, db: AsyncSession) -> int:
     try:
-        query = await db.execute(
+        return await db.scalar(
             select(func.count(Task.task_id))
             .where(Task.user_fk == user_id)
         )
-        return query.scalar()
     except Exception as error:
         logger.error(f"Failed to get tasks count: {error}")
         return 0

@@ -148,15 +148,21 @@ class UserViews:
     @user_router.delete("/avatar", summary="Delete avatar")
     async def delete_avatar_endpoint(self, token: str = Depends(get_current_user_id)) -> JSONResponse:
         try:
+            # For v2, we should ideally check metadata for extension
+            # For now, let's try to delete with common extensions or just the ID if it was old
             user = await user_db.delete_avatar_database(user_id=token, db=self.db)
-            if user:
-                await avatar_ext.delete_avatar(user_id=token)
-                return JSONResponse(
-                    {
-                        "message": "Avatar deleted successfully"
-                    },
-                    status_code=status.HTTP_200_OK
-                )
+            avatar_v2 = await avatar_db.get_avatar_by_user_id_v2(user_id=token, db=self.db)
+
+            if avatar_v2:
+                # Try to extract extension from stored URL or metadata
+                ext = "jpg"
+                if "." in avatar_v2.url:
+                    ext = avatar_v2.url.split(".")[-1]
+                await avatar_ext.delete_avatar(user_id=token, extension=ext)
+                await avatar_db.delete_avatar_v2(user_id=token, db=self.db)
+            elif user:
+                await avatar_ext.delete_avatar(user_id=token)   # default jpg
+
             return JSONResponse(
                 {
                     "message": "Avatar deleted successfully"
@@ -190,13 +196,14 @@ class UserViews:
                 )
 
             content = await file.read()
-            s3_path = await avatar_ext.post_avatar(user_id=user_id, file=content)
+            extension = file.content_type.split('/')[-1] if '/' in file.content_type else "jpg"
+            s3_path = await avatar_ext.post_avatar(user_id=user_id, file=content, extension=extension)
 
             user = await user_db.add_avatar(user_id=user_id, url=s3_path, db=self.db)
 
             if user:
                 return JSONResponse(
-                    content={"message": "Avatar uploaded", "path": s3_path},
+                    content={"message": "Avatar uploaded", "path": f"http://localhost:9000/{s3_path}"},
                     status_code=status.HTTP_201_CREATED
                 )
             raise HTTPException(status_code=404, detail="User not found")
@@ -209,9 +216,18 @@ class UserViews:
 
     @user_router.get("/avatar", summary="Get avatar")
     async def get_avatar_endpoint(self, user_id: UUID = Depends(get_current_user_id)) -> JSONResponse:
+        # Check v2 first
         avatar_path = await avatar_db.get_avatar_url_by_user_id_v2(user_id=user_id, db=self.db)
 
+        # Then check v1 if v2 is empty
+        if not avatar_path:
+            avatar_path = await user_db.get_avatar(user_id=user_id, db=self.db)
+
         if avatar_path:
+            # Ensure path includes bucket name
+            if not avatar_path.startswith("avatars/"):
+                avatar_path = f"avatars/{avatar_path}"
+
             full_url = f"http://localhost:9000/{avatar_path}"
             return JSONResponse({"avatar_url": full_url})
 
@@ -226,6 +242,10 @@ class UserViews:
     async def get_avatar_endpoint_v2(self, user_id: UUID = Depends(get_current_user_id)) -> JSONResponse:
         avatar_url = await avatar_db.get_avatar_url_by_user_id_v2(user_id=user_id, db=self.db)
         if avatar_url:
+            # Ensure path includes bucket name
+            if not avatar_url.startswith("avatars/"):
+                avatar_url = f"avatars/{avatar_url}"
+
             full_url = f"http://localhost:9000/{avatar_url}"
             return JSONResponse({"avatar_url": full_url})
         return JSONResponse(
@@ -245,7 +265,8 @@ class UserViews:
                 raise HTTPException(status_code=400, detail="Only images allowed")
 
             content = await file.read()
-            s3_path = await avatar_ext.post_avatar(user_id=user_id, file=content)
+            extension = file.content_type.split('/')[-1] if '/' in file.content_type else "jpg"
+            s3_path = await avatar_ext.post_avatar(user_id=user_id, file=content, extension=extension)
             metadata = {
                 "uploaded_at": datetime.now().isoformat(),
                 "file_size": file.size,
@@ -255,7 +276,7 @@ class UserViews:
 
             if user:
                 return JSONResponse(
-                    content={"message": "Avatar uploaded", "path": s3_path},
+                    content={"message": "Avatar uploaded", "path": f'http://localhost:9000/{s3_path}'},
                     status_code=status.HTTP_201_CREATED
                 )
             raise HTTPException(status_code=404, detail="User not found")

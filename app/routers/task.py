@@ -11,7 +11,8 @@ from app.schemas.responses import (
 )
 from loguru import logger
 from uuid import UUID
-
+import hashlib
+import json
 
 tasks_router = APIRouter(prefix="/task", tags=["Task"])
 
@@ -28,19 +29,27 @@ class TaskViews:
     ) -> JSONResponse:
         logger.info(f"Creating task for user {token}: {task_data.title}")
         try:
-            created_task_id = await task_db.create_task(
+            created_task = await task_db.create_task(
                 task=task_data,
                 user_id=token,
                 db=self.db
             )
-            if created_task_id:
-                logger.info(f"Task created successfully: {created_task_id}")
-                response = TaskCreateResponse(
-                    message="Task created successfully",
-                    task_id=str(created_task_id)
+            if created_task:
+                logger.info(
+                    f"Task created successfully: {created_task.task_id}"
                 )
                 return JSONResponse(
-                    response.model_dump(),
+                    {
+                        "task_id": str(created_task.task_id),
+                        "description": created_task.description,
+                        "title": created_task.title,
+                        "appointed_at": (
+                            created_task.appointed_at.isoformat()
+                            if created_task.appointed_at else None
+                        ),
+                        "created_at": created_task.created_at.isoformat(),
+                        "message": "Task created successfully"
+                    },
                     status_code=status.HTTP_201_CREATED
                 )
             else:
@@ -207,6 +216,68 @@ class TaskViews:
             )
         except HTTPException as error:
             logger.error(f"Error during task retrieval: {error}")
+            return JSONResponse(
+                {"message": "Internal server error"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+tasks_meta_router = APIRouter(
+    prefix="/tasks/meta",
+    tags=["Tasks Meta"],
+)
+
+
+@cbv(tasks_meta_router)
+class TasksMetaRouter:
+    db: AsyncSession = Depends(get_db)
+    user_id: UUID = Depends(get_current_user_id)
+
+    @tasks_meta_router.get("/", summary="Returns the hash of user's tasks")
+    async def get_tasks_hash_endpoint(self) -> JSONResponse:
+        try:
+            # Fetch all tasks sorted by task_id for stability
+            tasks = await task_db.get_all_user_tasks(self.user_id, self.db)
+
+            # Create a list of task metadata for hashing
+            # We use a set of fixed fields and a stable date format
+            tasks_data = [
+                {
+                    "task_id": str(task.task_id),
+                    "title": task.title,
+                    "description": task.description,
+                    "created_at":
+                        task.created_at.replace(microsecond=0).isoformat(),
+                    "appointed_at": (
+                        task.appointed_at.replace(microsecond=0).isoformat()
+                        if task.appointed_at else None
+                    ),
+                }
+                for task in tasks
+            ]
+
+            # Use separators to ensure no spaces in the resulting JSON string
+            # This makes the hash independent of JSON library defaults.
+            tasks_hash = hashlib.sha256(
+                json.dumps(
+                    tasks_data,
+                    sort_keys=True,
+                    separators=(",", ":")
+                ).encode("utf-8")
+            ).hexdigest()
+
+            return JSONResponse(
+                {"checksum": tasks_hash},
+                status_code=status.HTTP_200_OK
+            )
+        except HTTPException as error:
+            logger.error(f"Error during task hash retrieval: {error}")
+            return JSONResponse(
+                {"message": "Internal server error"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as error:
+            logger.error(f"Unexpected error during task hash retrieval: {error}")
             return JSONResponse(
                 {"message": "Internal server error"},
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR

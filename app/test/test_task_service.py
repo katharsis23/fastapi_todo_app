@@ -29,18 +29,24 @@ def auth_token(client):
 class TestTaskViews:
 
     def test_post_task_success(self, client, auth_token):
-        from unittest.mock import patch
+        from unittest.mock import patch, MagicMock
+        from datetime import datetime
         payload = {
             "title": "Test Task",
             "description": "Test description"
-            # appointed_at omitted to avoid timezone issues
         }
 
         # First patch create_task with AsyncMock
         with patch("app.database.task.create_task", new_callable=AsyncMock) as mock_create:
             from uuid import uuid4
-            mock_task_id = uuid4()
-            mock_create.return_value = mock_task_id
+            mock_task = MagicMock()
+            mock_task.task_id = uuid4()
+            mock_task.title = "Test Task"
+            mock_task.description = "Test description"
+            mock_task.appointed_at = None
+            mock_task.created_at = datetime.now()
+
+            mock_create.return_value = mock_task
 
             response = client.post(
                 "/task/",
@@ -52,6 +58,8 @@ class TestTaskViews:
             data = response.json()
             assert data["message"] == "Task created successfully"
             assert "task_id" in data
+            assert data["title"] == "Test Task"
+            assert "created_at" in data
 
     def test_patch_task_success(self, client, auth_token):
         from unittest.mock import patch, AsyncMock

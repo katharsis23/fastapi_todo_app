@@ -4,7 +4,7 @@ from app.database.database import DeclarativeBase, postgresql_engine
 from contextlib import asynccontextmanager
 from app.routers.healthcheck import health_router
 from app.routers.user import user_router
-from app.routers.task import tasks_router
+from app.routers.task import tasks_router, tasks_meta_router
 from app.middleware.logging import LoggingMiddleware, ErrorHandlingMiddleware
 from app.middleware.rate_limiter import RateLimitMiddleware
 from app.redis_client import redis_client
@@ -51,3 +51,4 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(user_router)
 app.include_router(tasks_router)
+app.include_router(tasks_meta_router)

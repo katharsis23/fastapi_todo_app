@@ -29,6 +29,7 @@ def _make_app() -> FastAPI:
     app = FastAPI()
     app.include_router(router=user.user_router)
     app.include_router(router=task.tasks_router)
+    app.include_router(router=task.tasks_meta_router)
     return app
 
 

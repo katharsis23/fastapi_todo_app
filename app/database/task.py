@@ -11,7 +11,7 @@ async def create_task(
     task: TaskCreate,
     user_id: UUID,
     db: AsyncSession
-) -> Optional[UUID]:
+) -> Optional[Task]:
     try:
         db_task = Task(
             title=task.title,
@@ -22,7 +22,7 @@ async def create_task(
         db.add(db_task)
         await db.commit()
         await db.refresh(db_task)
-        return db_task.task_id
+        return db_task
     except Exception as error:
         logger.error(f"Error during task creation: {error}")
         await db.rollback()
@@ -124,3 +124,16 @@ async def count_user_tasks(user_id: UUID, db: AsyncSession) -> int:
     except Exception as error:
         logger.error(f"Failed to get tasks count: {error}")
         return 0
+
+
+async def get_all_user_tasks(user_id: UUID, db: AsyncSession) -> List[Task]:
+    try:
+        query = await db.execute(
+            select(Task)
+            .where(Task.user_fk == user_id)
+            .order_by(Task.task_id)
+        )
+        return query.scalars().all()
+    except Exception as error:
+        logger.error(f"Failed to get all tasks for checksum: {error}")
+        return []

@@ -1,6 +1,18 @@
 version: '3.8'
 
 services:
+  nginx:
+    build: ./nginx
+    container_name: NGINX_REVERSE_PROXY
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+
   backend:
     build: .
     container_name: FASTAPI_BACKEND
@@ -11,8 +23,8 @@ services:
       - .:/app
     env_file:
       - .env
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -20,6 +32,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - app-network
 
   postgres:
     image: postgres:latest
@@ -41,6 +55,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - app-network
 
   s3-bucket:
     image: minio/minio
@@ -62,6 +78,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
   createbuckets:
     image: minio/mc
@@ -79,6 +97,9 @@ services:
       /usr/bin/mc cp /tmp/default_avatar.jpeg myminio/avatars/default_avatar.jpeg || true;
 
       /usr/bin/mc mb myminio/notes || true; exit 0; "
+    networks:
+      - app-network
+      
   redis:
     image: redis:latest
     container_name: redis_container
@@ -118,6 +139,9 @@ services:
     restart: unless-stopped
     tty: true
     stdin_open: true
+    networks:
+      - app-network
+      
   worker:
     build: .
     container_name: CELERY_WORKER
@@ -133,6 +157,12 @@ services:
         condition: service_started
     volumes:
       - .:/app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   postgres_data:

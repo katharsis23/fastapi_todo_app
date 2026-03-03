@@ -1,0 +1,34 @@
+name: Python CI/CD
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main", "dev"]
+
+jobs:
+  build:
+    runs-on: ubuntu:latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Docker build
+        uses: docker/buildx-action@v3
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+
+      - name: Install docker-compose
+        run: sudo apt-get update && sudo apt-get install -y docker-compose
+
+      - name: Docker Compose up
+        run: docker-compose up -d
+
+      - name: Lint checkout
+        run: docker compose run --rm backend flake8 --config=app/.flake8 app/
+
+      - name: Test checkout
+        run: docker compose run --rm -e PYTHONPATH=/app -w /app/app backend pytest test/ -vv
